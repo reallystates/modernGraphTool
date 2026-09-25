@@ -22,70 +22,75 @@ modernGraphTool is a ground-up rewrite — built on modern web technologies with
 
 It did its original job well: load measurements, overlay curves, compare headphones. Simple and effective.
 
-Most measurement databases in the squig.link network still run CrinGraph or a derivative of it, and its influence on how we visualize FR data is undeniable.
+## At a Glance
 
-:::note[Full data compatibility]
-modernGraphTool is not a 'rejection' of CrinGraph — it's a continuation.
+"CrinGraph" today usually means one of three codebases. [Vanilla CrinGraph](https://github.com/mlochbaum/CrinGraph) is the original. [squiglink lab](https://github.com/squiglink/lab) is the lightweight fork most squig.link databases run. [PublicGraphTool](https://github.com/HarutoHiroki/PublicGraphTool) is the most feature-rich fork, carrying most of the community's add-ons.
 
-It uses the same data format, the same folder structure, and the same `phone_book.json`. Your existing measurement data works without any changes.
-:::
+|                                   | Vanilla CrinGraph      | squiglink lab                  | PublicGraphTool                         | modernGraphTool                                                                                     |
+| --------------------------------- | ---------------------- | ------------------------------ | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Codebase**                      | One ~2,500-line script | ~4,100 lines in three scripts  | ~14,400 lines in 40+ unbundled scripts  | Bundled TypeScript components                                                                       |
+| **Parametric EQ + AutoEQ**        | —                      | ✓                              | ✓                                       | ✓ [with undo/redo](./features/equalizer.mdx)                                                        |
+| **A/B compare of EQ revisions**   | —                      | —                              | —                                       | ✓ History & Compare panel, momentary bypass key                                                     |
+| **Per-channel (L / R) EQ**        | —                      | —                              | Balance slider only                     | ✓ [Shared + per-ear bands](./features/equalizer.mdx#per-channel-eq)                                 |
+| **Audio preview with live EQ**    | —                      | Tone generator                 | ✓                                       | ✓ Your own audio files, noise, tones, sine sweep                                            |
+| **Preference Bound**              | —                      | —                              | ✓                                       | ✓ [Built in](./features/preference-bound.mdx)                                                       |
+| **Target customization**          | —                      | —                              | Tilt, bass, ear gain, treble            | ✓ [Configurable filters, presets, per-target defaults](./features/target-customizer.mdx)            |
+| **Interface languages**           | English                | English                        | English                                 | English, Korean, Czech, Russian, Ukrainian                                                          |
+| **Theming**                       | Edit CSS + JS          | Edit several CSS files         | Edit several CSS files                  | One `theme.css` + [Theme Generator](/theme-generator)                                               |
+| **Configuration**                 | Hand-edit `config.js`  | Hand-edit `config.js`          | Hand-edit `config.js`                   | Structured `config.js` + [Config Editor](/config-generator) and [phone_book Editor](/phone-book-editor) |
+| **Updates**                       | Re-upload files        | Re-upload files                | Re-upload files                         | Automatic in [CDN mode](./guide-for-admins/deployment/cdn.mdx)                                     |
+| **Data format**                   | `phone_book.json` + FR `.txt` | Same                    | Same                                    | Same — drop-in compatible                                                                           |
 
-## Where Things Got Difficult
+The sections below walk through what these differences mean in practice.
 
-As the community grew, so did the demands on the tool — and CrinGraph's original design wasn't built to accommodate them.
+## Every Feature, in One Place
 
-### A Single Script Does Everything
+In the CrinGraph world, features live in various places. PublicGraphTool has Preference Bound and a Device PEQ bridge; squiglink lab is what most sites deploy. To get a feature your fork lacks, you port it by hand — merging thousands of lines of unbundled JavaScript that were never designed to be combined, and hoping nothing else breaks.
 
-CrinGraph's core functionality — data loading, graph rendering, UI construction, state management — lives in a single JavaScript file spanning thousands of lines. There is no separation between concerns.
+modernGraphTool ships every feature in the same build, each one switchable from `config.js`:
 
-Even for experienced developers, making targeted changes without breaking something else is a challenge. For operators without programming experience, it's practically impossible.
+- **[Equalizer](./features/equalizer.mdx)** — interactive parametric EQ, AutoEQ with shelf filters, per-channel bands, undo/redo, a History & Compare panel for A/B-ing revisions, and import/export.
+- **Live audio preview** — play your own audio file, white or pink noise, a test tone or a sine sweep through your EQ.
+- **[Device PEQ](./features/device-peq.mdx)** — push filters straight to 20+ hardware devices over USB, Serial, Bluetooth or the network.
+- **[Target Customizer](./features/target-customizer.mdx)** — tilt, bass, treble and ear-gain filters on any target, with presets and per-target starting values. Operators can add more filters to the set.
+- **[Preference Bound](./features/preference-bound.mdx)**, **[Average Curves](./features/average-curves.mdx)**, and multi-sample measurements drawn as averaged, per-run, min/max-band curves, or HpTF range.
+- **[Cross-Site Search](./features/cross-site-search.mdx)** and the **[Site Selector](./features/site-selector.mdx)** — find a device across every database in the network, and jump between them.
+- **[Frequency Tutorial](./features/frequency-tutorial.mdx)**, shareable URLs, screenshots and watermarks.
 
-### Styling Is Scattered
+## Updates Without Touching Code
 
-The visual appearance is spread across multiple CSS files without variables, combined with inline styles in dozens of `createElement` calls throughout the JavaScript. There is no single file you can edit to theme the entire tool.
+A CrinGraph site stays exactly as it was on the day it was uploaded. Every bug fix or new feature means downloading files, re-applying your edits, and uploading again — which is why most sites never update at all.
 
-Changing a color scheme or adapting the look for yourself means hunting through both CSS and JS, hoping you catch every instance.
+In [CDN mode](./guide-for-admins/deployment/cdn.mdx), your server keeps only your data, `config.js` and `theme.css`. The app itself loads from a CDN, and your site picks up each new release within minutes, with no action on your part.
 
-### Forks Diverge, Features Fragment
+And there is a steady stream of releases. modernGraphTool has been in active development since March 2025, and v2 has shipped various new features since its April 2026 launch — among them:
 
-When enthusiasts wanted new capabilities — like preference adjustments for Diffuse Field targets — they had to fork the entire project and modify the core script.
+- **Per-channel EQ** — separate bands for each ear, so AutoEQ can fix channel imbalance and match a target in one go.
+- **History & Compare** — A/B between EQ revisions, with full undo/redo.
+- **Three new interface languages** — Czech, Russian and Ukrainian, contributed by the community.
+- **turboEQ** — an extremely fast AutoEQ that dynamically adapts to the frequency response.
 
-Each fork became its own island. Complexity of 'single script does everything' made it hard to port features across forks, and operators had to choose which subset of capabilities they wanted — with no way to combine them.
+See the [changelog](./changelog.mdx) for everything else.
 
-## How modernGraphTool Is Different
+## Configure Without Code
 
-modernGraphTool is a completely new graph tool built on SvelteKit, TypeScript, and D3.js.
+CrinGraph's `config.js` is a list of loose JavaScript variables, and the look of the page is spread across several stylesheets and inline styles inside the scripts. Customizing either means reading source code.
 
-Rather than patching an aging codebase, it was designed from the start for the features the community needs.
+modernGraphTool keeps each concern in one place, and gives you tools so you rarely need to open a text editor:
 
-|                       | CrinGraph / Forks                                                    | modernGraphTool                                                                                              |
-| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Architecture**      | Single JS script (thousands of lines)                                | Modular SvelteKit components (TypeScript)                                                                    |
-| **Theming**           | Multiple CSS files + inline styles                                   | Single `theme.css` with CSS variables + [Theme Generator](/theme-generator)                                  |
-| **Target adjustment** | Fork-dependent; one target, 3–4 hardcoded filters                    | [Per-target adjustments, configurable filters, filter presets](./features/target-customizer.mdx)                 |
-| **Parametric EQ**     | External plugin scripts, fragmented across forks                     | Built-in with [AutoEQ, real-time audio preview, and interactive EQ](./features/equalizer.mdx)                    |
-| **Device PEQ bridge** | [External plugin by jeromeof](https://github.com/jeromeof/devicePEQ) | [Imported and refactored](./features/device-peq.mdx) as a built-in component                                     |
-| **Multi-language**    | Not supported                                                        | English + Korean ([compile-time i18n](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), extensible) |
-| **Performance**       | Unbundled vanilla JS                                                 | Bundled with tree-shaking and code splitting                                                                 |
-| **Updates**           | Manual file replacement                                              | CDN mode: auto-updates without re-uploading                                                                  |
-| **Data format**       | `phone_book.json` + FR text files                                    | Same format — drop-in compatible                                                                             |
+- **[`config.js`](./guide-for-admins/customize-page.mdx)** — one structured object covering initial devices and targets, normalization, labels, watermarks, panel layout, rankings, languages, and every feature toggle.
+- **[Config Editor](/config-generator)** — a form for every option. Import your current file, change what you need, export it back.
+- **[Theme Generator](/theme-generator)** — pick a few colors and get a complete light and dark `theme.css`.
+- **[phone_book.json Editor](/phone-book-editor)** — manage brands, devices and variants without hand-writing JSON.
 
-## Built for Operators
+## Keep Your Data, and Your Options
 
-modernGraphTool is designed so that measurement database operators can set up, customize, and maintain their site without touching source code.
+Switching doesn't lock you in.
 
-- **One file to configure** — [`config.js`](./guide-for-admins/customize-page.mdx) controls everything: initial devices, targets, normalization, watermarks, feature toggles, and more.
-- **One file to theme** — [`theme.css`](./guide-for-admins/customize-page.mdx) uses CSS custom properties for graph colors, UI accent, and more. The online [Theme Generator](/theme-generator) creates it for you.
-- **CDN deployment** — Point your page at a CDN and your site receives updates automatically. Your data and config stay on your server, untouched.
-- **Data compatibility** — Keep your existing `data/` folder and `phone_book.json`. No conversion, no migration scripts.
-- **Dual-hosting** — Run modernGraphTool alongside your existing CrinGraph on the same domain if you want to [transition gradually](./database-tips/dual-hosting/main-cringraph.mdx).
-
-## Actively Maintained
-
-CrinGraph and its major forks are no longer actively maintained. modernGraphTool is — the developer is a 'Squiggler' and audio reviewer, just like you.
-
-New features, bug fixes, and improvements will be released regularly. If you use CDN mode, they arrive automatically without any action on your part.
+- **Same data** — keep your `data/` folder and `phone_book.json`. modernGraphTool-only fields add to the CrinGraph format rather than replacing it, so the same files stay readable by CrinGraph.
+- **Dual-hosting** — run modernGraphTool alongside your existing CrinGraph on the same domain and [transition gradually](./database-tips/dual-hosting/main-cringraph.mdx).
+- **Choose your deployment** — CDN mode for automatic updates, a [pre-built release](./guide-for-admins/deployment/prebuilt.mdx) when you want control over when versions change, or [GitHub Pages](./guide-for-admins/deployment/github-pages.mdx) with no server at all.
 
 :::note[Ready to get started?]
-Head to the [Setup Guide](./guide-for-admins/setup-env.mdx) to set up your environment, or jump to [Customizing the Page](./guide-for-admins/customize-page.mdx) if you already have modernGraphTool running.
+Coming from CrinGraph? Follow [Migrating from CrinGraph](./migrating-from-cringraph.mdx). Starting fresh? Head to [Choosing a Deployment](./guide-for-admins/setup-env.mdx).
 :::

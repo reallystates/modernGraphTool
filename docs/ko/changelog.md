@@ -12,6 +12,19 @@ pagefind: true
 draft: false
 ---
 
+### v2.2.2
+- Feat: AutoEQ가 이제 [jaakkopasanen의 AutoEq](https://github.com/jaakkopasanen/AutoEq) 옵티마이저를 WebAssembly로 이식한 [turboEQ](https://github.com/potatosalad775/turboEQ)로 동작합니다. 8밴드 기준 수 밀리초 만에 완료되어 이전보다 100배 이상 빠르며, 요청한 밴드 수를 항상 정확히 반환합니다. 자세한 내용은 [AutoEQ 벤치마크](./features/autoeq-benchmarks.mdx) 참조.
+- Feat: AutoEQ 맞춤 방식이 추가되었습니다. **완전 일치**(기본값)는 그래프에 표시된 그대로 20 kHz까지의 전체 곡선을 맞추고, **고음 보존**은 AutoEq 본래의 방식을 따라 고역을 스무딩하며 10 kHz 이상에는 밴드를 배치하지 않습니다. 자세한 내용은 [맞춤 방식](./features/equalizer.mdx#fit-mode) 참조.
+- Feat: 기기 곡선, 타겟, AutoEQ 옵션이 바뀔 때마다 AutoEQ를 다시 실행하는 **자동 적용** 스위치가 추가되었습니다. 예를 들어 Target Customizer에서 타겟 기울기를 조정하는 동안 유용합니다. 필터를 직접 수정하거나 기기, 타겟, EQ 프리셋을 바꾸면 자동으로 꺼집니다. 자세한 내용은 [자동 적용](./features/equalizer.mdx#auto-apply) 참조.
+
+### v2.2.1
+- Refactor: Preference Bound이 이제 기준 (DF) 타겟이 아닌, 밴드 중심에 맞춰 정렬됩니다. 이는 그래프 정렬을 보다 직관적으로 만들지만, 이전 버전과 비교했을 때 일부 차이가 나타날 수 있습니다.
+- Refactor: 샘플 / 채널 선택기가 더 넓은 폭을 차지하도록 조정되어, 작은 화면에서의 사용성을 개선했습니다.
+- Refactor: 코드베이스 전반에 걸친 여러 최적화 기법을 적용하여 로딩 시간을 단축했습니다.
+
+### v2.2.0
+- Feat: 기기 등급을 `phone_book.json` 대신 게시된 스프레드시트([squigRanking](https://potatosalad775.github.io/squigRanking/docs) 시트 또는 임의의 CSV)에서 읽어올 수 있게 되었습니다. 시트만 수정하면 재배포 없이 등급이 갱신됩니다. 등급 스케일이 정의된 경우 색상 배지로 표시됩니다. 새로운 `RANKING` 섹션에서 설정하며, 기존 `RANKING_URL`을 대체합니다(해당 키도 계속 동작합니다). 자세한 내용은 [RANKING 문서](./guide-for-admins/customize-page.mdx#ranking) 참조.
+
 ### v2.1.9
 
 - Feat: 채널 별 이퀄라이저 기능이 추가되어, 사용자가 좌우 채널에 대해 서로 다른 EQ 설정을 독립적으로 적용할 수 있게 되었습니다.

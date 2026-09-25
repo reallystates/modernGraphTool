@@ -4,6 +4,7 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 
 		<title>modernGraphTool</title>
 		<meta name="title" content="modernGraphTool" />
@@ -42,35 +43,42 @@
 		/>
 		<link rel="manifest" href="/modernGraphTool/assets/site.webmanifest" />
 
-		<!-- Pretendard Variable font (Korean-optimized, dynamic subset) -->
+		<!--
+			Pretendard Variable font (Korean-optimized, dynamic subset). Preloaded, then
+			swapped to a stylesheet on load: a pending stylesheet holds back every classic
+			script after it, config.js and the app boot included.
+		-->
 		<link
-			rel="stylesheet"
+			rel="preload"
 			as="style"
 			crossorigin
 			href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+			onload="
+				this.onload = null;
+				this.rel = 'stylesheet';
+			"
 		/>
 		<!-- Plain script (NOT type="module") — sets window.GRAPHTOOL_CONFIG synchronously before SvelteKit boots -->
 		<script src="/modernGraphTool/config.js"></script>
 		<link rel="stylesheet" href="/modernGraphTool/theme.css" />
-		<link href="/modernGraphTool/_app/immutable/entry/start.B79R0TOJ.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/BJX_eWeW.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/DMqYCA9L.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/entry/app.CdW4Xq4I.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/HclGiUj8.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/Cy6zrogO.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/entry/start.YSPR0spd.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/chunks/D_1zhlMs.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/entry/app.zIZfJ2z5.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/chunks/BQYi98a9.js" rel="modulepreload">
 		<link href="/modernGraphTool/_app/immutable/chunks/xihTtKlq.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/nodes/0.DnBDLdvk.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/D0gYuZtP.js" rel="modulepreload">
-		<link href="/modernGraphTool/_app/immutable/chunks/BZRLTaX-.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/nodes/0.ViqUEcqr.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/chunks/BtCra96l.js" rel="modulepreload">
+		<link href="/modernGraphTool/_app/immutable/chunks/agEZDkOE.js" rel="modulepreload">
 		
-		<link href="/modernGraphTool/_app/immutable/assets/0.BqxIstj8.css" rel="stylesheet">
+		<link href="/modernGraphTool/_app/immutable/assets/AppShell.jgkOGWfn.css" rel="stylesheet">
+		<link href="/modernGraphTool/_app/immutable/assets/0.DV-J2PHJ.css" rel="stylesheet">
 	</head>
 
 	<body data-sveltekit-preload-data="hover">
 		<div style="display: contents">
 			<script>
 				{
-					__sveltekit_kr0ape = {
+					__sveltekit_17vpm0h = {
 						base: "/modernGraphTool",
 						assets: "/modernGraphTool"
 					};
@@ -78,8 +86,8 @@
 					const element = document.currentScript.parentElement;
 
 					Promise.all([
-						import("/modernGraphTool/_app/immutable/entry/start.B79R0TOJ.js"),
-						import("/modernGraphTool/_app/immutable/entry/app.CdW4Xq4I.js")
+						import("/modernGraphTool/_app/immutable/entry/start.YSPR0spd.js"),
+						import("/modernGraphTool/_app/immutable/entry/app.zIZfJ2z5.js")
 					]).then(([kit, app]) => {
 						kit.start(app, element);
 					});
