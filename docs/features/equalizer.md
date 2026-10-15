@@ -57,6 +57,22 @@ Two things to know:
 
 See [Equalizing audio](../guide-for-users/equalizing.mdx#per-channel-eq-l--r) for the workflow.
 
+## EQ one run of a sample set
+
+A [sample set](../guide-for-admins/manage-data.mdx#sample-sets) draws as the average of its runs, and by default
+that average is what the EQ applies to. When the runs are different fits — insertion depths, pad
+positions — the average is a fit nobody actually wears: it blurs the treble peaks that move with
+depth into one gentle bump, and AutoEQ fits to that blur.
+
+The source picker at the top of the panel lists a sample set's runs under it. Pick one and the EQ
+curve, AutoEQ, the band handles and the hover readout all use that run; the device row itself
+(marked **Average**) goes back to the average. While EQ is on, the dimmed "before" curve is the
+picked run, and the EQ curve's label names it — `IEM (EQ · Deep)`.
+
+The pick belongs to the variant it was made on. Switch the device to another variant and the EQ
+returns to the average, since run 2 of one set has nothing to do with run 2 of another. Share links
+don't record the source at all, so a shared EQ opens on the average.
+
 ## EQ constraints
 
 An EQ constraint limits the band list to what a particular EQ engine accepts — a DAC's hardware EQ,
@@ -86,6 +102,66 @@ types are offered, and a value it fixes is shown read-only. Hover a box to see w
 
 Importing a filter file switches back to *Default (unlimited)* first, so the file lands as written.
 
+## History & Compare \{#history-and-compare\}
+
+The **History & Compare** section of the panel keeps earlier versions of your EQ so you can go back
+to one, keep it, or listen to two side by side.
+
+- **History** logs your edits automatically. A burst of changes — dragging a slider — becomes one
+  entry. It lasts for the session and starts over when you pick another source device. The trash
+  button clears it; an entry's **⋯** menu deletes just that one.
+- **Bookmarks** keep an entry for good. Star a History entry to bookmark it; it is named after its
+  strongest band and the date, and **⋯ → Rename** changes that. Bookmarks are stored in this browser
+  only, separately on each site, and are listed for every device — your current device's come first.
+  They are removed one at a time from the Bookmarks tab, never by clearing History, and a browser
+  keeps at most 200.
+
+### A/B comparison
+
+Press **A** or **B** on any two entries — in either tab, so A can be a bookmark and B a recent edit —
+then switch between them with the **A** and **B** buttons at the top. Two options appear once both
+are picked:
+
+- **Match loudness** plays the louder of the two at the quieter one's level, so you compare tone
+  rather than volume. It measures loudness the way streaming services do (K-weighted) and only ever
+  turns the sound down. It applies to the audio player on this page only — not to
+  [Hardware EQ](./device-peq.mdx) or the uniPEQ link, where the device or app owns the preamp — and
+  it stops as soon as you edit a band, since you are no longer comparing A with B.
+- **Show on graph** draws the side that isn't playing as a dashed line on top of the graph, so you
+  can see what a switch changes.
+
+To keep an entry on the graph for longer, **⋯ → Add to graph** inserts it as a curve of its own: the
+current source device with that entry's bands, which you can hide, recolor or remove like any other.
+
+### Entries that don't fit the constraint
+
+An entry made under a looser [EQ constraint](#eq-constraints) — more bands, or values outside the
+active one's ranges — is marked **Doesn't fit** with the constraint's name, and its A/B buttons are
+unavailable. Nothing reshapes it to fit: applying it would silently change what you saved. Switch
+back to a constraint it fits, or rebuild it under the new one.
+
+## Importing filter files
+
+**Import EQ** reads Equalizer APO's parametric format, the text AutoEq, squig.link tools and APO
+itself write:
+
+```
+Preamp: -6.0 dB
+Channel: L
+Filter 1: ON PK Fc 40 Hz Gain 5.0 dB Q 1.41
+Channel: R
+Filter: ON PK Fc 45 Hz BW Oct 0.7 Gain 4.5 dB
+```
+
+- **Channels** — `Channel: L` or `Channel: 1` sends the filters that follow to the left ear,
+  `R` or `2` to the right; `ALL`, `L R` and `1 2` mean both. Other layouts import as both ears.
+- **Filters** — `PK`, plus low and high shelves (`LSC`/`LS`, `HSC`/`HS`). Bandwidth (`BW Oct`) and a
+  shelf slope (`LSC 12 dB Fc …`) convert to Q exactly; a shelf with neither gets APO's default
+  12 dB/oct. The filter number is optional, as in APO, and `OFF` imports as a disabled band.
+- **Skipped** — filter types the equalizer can't model (band-pass, notch, all-pass, low/high-pass,
+  the corner-frequency `LS 6dB` / `HS 12dB` shelves) are left out, and a warning says how many.
+  `Preamp:` is ignored; the preamp is always derived from the filters.
+
 ## AutoEQ band count
 
 **Run AutoEQ** generates as many bands as the filter list already holds, so adding five bands before
@@ -101,6 +177,11 @@ out where it has no slot for them.
 The count is the total. With **Use shelf filters** on, two of those bands are the low and high
 shelf: ten bands is eight peaking filters plus the pair. Below four bands the shelves are dropped,
 because spending the whole budget on them corrects nothing but overall tilt.
+
+AutoEQ makes peaking and shelf filters only. Any other band in the list — a high or low pass, a
+band pass, a notch or an all-pass, from an imported config or read from a device — stays where it
+is, and the fit corrects around it: its response counts as part of the source curve, and its slot
+comes out of the band count.
 
 ## Auto-apply
 
@@ -122,7 +203,8 @@ It switches itself off, and says why, rather than overwrite something it can no 
 
 - the filters are edited by hand — adding, removing or dragging a band, undo, import, or a History &
   Compare switch;
-- a different source device or target is selected, or the target is removed;
+- a different source device, sample run or target is selected, or the target is removed;
+- the source switches to another variant while a sample run was being fitted;
 - the EQ preset changes;
 - the fallback optimizer answered (see [The optimizer](#the-optimizer)). It is too slow to follow
   every change, so the switch stays unavailable until a run succeeds with turboEQ.

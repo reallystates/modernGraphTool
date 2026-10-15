@@ -130,6 +130,7 @@ docs 사이트에는 실시간 **[Theme Generator](/theme-generator)**가 함께
 	--color-graph-axis-label: rgba(0, 0, 0, 0.6); /* Axis labels (Hz, dB) */
 	--color-graph-grid-text: rgba(0, 0, 0, 0.5); /* Grid value labels */
 	--color-graph-baseline: rgba(0, 0, 0, 0.25); /* Baseline indicator */
+	--color-graph-compare: rgba(0, 0, 0, 0.55); /* History & Compare A/B ghost trace */
 }
 
 .dark {
@@ -138,6 +139,16 @@ docs 사이트에는 실시간 **[Theme Generator](/theme-generator)**가 함께
 	--color-graph-axis-label: rgba(255, 255, 255, 0.6);
 	--color-graph-grid-text: rgba(255, 255, 255, 0.5);
 	--color-graph-baseline: rgba(255, 255, 255, 0.25);
+	--color-graph-compare: rgba(255, 255, 255, 0.55);
+}
+```
+
+[uniPEQ 연결](../features/unipeq-link.mdx)의 QR 코드에는 변수가 두 개 더 있습니다. 일부러 `.dark` 값을 두지 않았습니다. 반전된 QR 코드를 모든 카메라 앱이 읽지는 못하므로, 두 모드 모두에서 밝은 바탕에 어두운 코드로 유지합니다. 이 변수가 없는 `theme.css`에서는 기본 콘텐츠 색과 배경색을 사용합니다.
+
+```css
+:root {
+	--color-qr-dark: oklch(20% 0.042 265.755); /* QR code modules */
+	--color-qr-light: oklch(100% 0 0); /* QR code background */
 }
 ```
 
@@ -320,6 +331,7 @@ INTERFACE: {
   PANEL_POSITION: "left",
   ALLOW_REMOVING_PHONE_FROM_SELECTOR: true,
   SWITCH_PHONE_PANEL_ON_BRAND_CLICK: true,
+  SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD: false,
   TARGET: {
     ALLOW_MULTIPLE_LINE_PER_TYPE: true,
     OMIT_TARGET_SUFFIX: true,
@@ -354,6 +366,12 @@ Phone(측정 데이터) 선택기에서 이미 추가된 항목을 다시 선택
 모바일 UI에서 브랜드 버튼 클릭 시 자동으로 기기 목록으로 전환할지 여부를 설정합니다.
 
 - `true`, `false` 중 선택.
+
+#### `SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD`
+
+처음 방문한 사용자에게 [Frequency Tutorial](../features/frequency-tutorial.mdx) 띠를 그래프 아래에 표시할지 여부를 설정합니다. 방문자는 그래프 툴바의 **주파수 가이드** 버튼으로 켜고 끌 수 있으며, 방문자의 선택이 이 기본값보다 우선합니다.
+
+- `true`, `false` 중 선택 (기본값 `false` — 그래프와 패널 공간을 위해 숨김).
 
 #### `TARGET`
 
@@ -740,22 +758,29 @@ TOPBAR: {
 ```javascript
 PREFERENCE_BOUND: {
   ENABLE_BOUND_ON_INITIAL_LOAD: false,
-  BASE_DF_TARGET_FILE: "KEMAR DF (KB006x) Target",
+  BOUND_LIST: [
+    { target: "KEMAR DF (KB006x)" },
+    { name: "5128", target: "5128 DF", upper: "Bounds U 5128.txt", lower: "Bounds D 5128.txt" },
+  ],
   COLOR_FILL: "rgba(180,180,180,0.2)",
   COLOR_BORDER: "rgba(120,120,120,0.5)",
 },
 ```
 
-그래프에 음영으로 상·하한 선호 범위를 표시하는 선호도 경계(Preference Bound) 오버레이를 설정합니다.
+그래프에 음영으로 상·하한 선호 범위를 표시하는 선호도 경계(Preference Bound) 오버레이를 설정합니다. 방문자는 타겟 목록 맨 아래 줄에서 경계를 하나 고르거나, 아무것도 고르지 않을 수 있습니다.
 
-- `ENABLE_BOUND_ON_INITIAL_LOAD` — 페이지 로드 시 곧바로 선호도 경계를 표시할지 여부.
+- `ENABLE_BOUND_ON_INITIAL_LOAD` — 페이지 로드 시 `BOUND_LIST`의 첫 항목을 선택할지 여부.
   - `true` 또는 `false`.
-- `BASE_DF_TARGET_FILE` — 보정 기준선으로 쓸 DF 타겟 파일.
+- `BOUND_LIST` — 선택할 수 있는 경계 목록. 비어 있으면 기능이 꺼집니다. 각 항목은 다음 값을 받습니다.
+  - `target` (필수) — 기준 DF 타겟. 타겟 폴더에 있는 이름 그대로 적으며, ` Target`이 없으면 자동으로 붙습니다.
+  - `name` (선택) — 버튼에 표시할 이름. 기본값은 타겟 이름이며, 항목끼리 겹치면 안 됩니다. `{ default, i18n }` 형식도 받습니다.
+  - `upper` / `lower` (선택) — `data/` 기준 경계 파일 경로. 기본값은 `Bounds U.txt` / `Bounds D.txt`.
+- `BASE_DF_TARGET_FILE` (이전 방식) — `BOUND_LIST`가 없을 때만, 기본 경계 파일을 쓰는 단일 항목으로 사용됩니다.
 - `COLOR_FILL` — 음영 영역을 채울 색상 (CSS 색상 값).
 - `COLOR_BORDER` — 경계선 색상 (CSS 색상 값).
 
 :::note[데이터 파일]
-선호도 경계를 표시하려면 `data/` 폴더에 경계 데이터 파일(`Bounds U.txt` / `Bounds D.txt`)이 있어야 합니다.
+각 항목의 경계 파일(따로 지정하지 않으면 `Bounds U.txt` / `Bounds D.txt`)이 `data/` 폴더에 있어야 해당 경계가 표시됩니다. 여러 경계를 제공하는 경우는 [선호도 경계](../features/preference-bound.mdx#offering-more-than-one-bound)를 참조하십시오.
 :::
 
 ### `TARGET_CUSTOMIZER`
@@ -834,7 +859,9 @@ DOWNLOAD: {
 },
 ```
 
-그래프 별 다운로드 버튼을 추가합니다. 스무딩, 정규화, 타겟 조정, 파라메트릭 EQ가 모두 적용된 상태 그대로의 곡선을 내보냅니다. 탭으로 구분된 `Frequency` / `dB`가 채널 별로 `.txt` 파일(`Name Suffix L.txt`, `Name Suffix R.txt`, …)에 저장됩니다.
+그래프 별 다운로드 버튼을 추가합니다. 스무딩, 정규화, 타겟 조정, 파라메트릭 EQ가 모두 적용된 상태 그대로의 곡선을 내보냅니다. 탭으로 구분된 `Frequency` / `dB`가 표시된 채널 별로 `.txt` 파일(`Name Suffix L.txt`, `Name Suffix R.txt`, …)에 저장되며, 파일이 둘 이상이면 하나의 `.zip`으로 묶입니다.
+
+[샘플 세트](./manage-data.mdx#sample-sets)는 먼저 범위를 묻습니다. **평균만**은 평균 곡선을, **모든 샘플**은 같은 채널의 모든 측정값을 함께 내보냅니다(`Name Suffix - Sample 1 L.txt`, 측정값에 라벨이 있으면 `Sample 1` 대신 라벨).
 
 - `ENABLED`: 다운로드 버튼을 표시합니다. 기본적으로 비활성화되어 있습니다.
 
@@ -851,6 +878,22 @@ EQUALIZER: {
 
 - `AUTOEQ_DEFAULT_BAND_COUNT` — 필터 목록이 비어 있을 때 **AutoEQ 실행**이 생성할 필터 밴드 수입니다. 기본값은 `8`입니다. 목록에 밴드가 하나라도 있으면 그 개수가 우선하므로, 사용자는 실행 전에 밴드를 추가하거나 제거해 원하는 개수를 직접 정할 수 있습니다. `1` 미만의 값은 무시되며, 활성화된 EQ 제약 조건의 밴드 상한도 그대로 적용됩니다. 5밴드 기기가 연결되어 있다면 5개가 생성됩니다.
 - `EQCAPS_URL` — [하드웨어 EQ](../features/device-peq.mdx)와 [EQ 제약 조건](../features/equalizer.mdx#eq-constraints) 선택 창이 기기·앱의 EQ 제약 조건을 읽어오는 곳으로, [eqcaps](https://github.com/potatosalad775/eqcaps) `/v1/` 채널의 사본입니다. 기본값은 GitHub Pages의 공식 채널이며, 미러나 직접 호스팅한 사본을 쓸 때 지정합니다. 이 URL은 CORS와 함께 `index.json`과 `profiles/`를 제공해야 합니다. 접근할 수 없어도 Built-in 제약 조건은 동작하고, 알려진 제조사의 기기도 연결됩니다.
+
+### `UNIPEQ_LINK`
+
+```javascript
+UNIPEQ_LINK: {
+  ENABLE: true,
+  SERVER: 'https://link.unipeq.com',
+},
+```
+
+이퀄라이저 패널의 **uniPEQ와 연결** 섹션입니다. [uniPEQ 연결](../features/unipeq-link.mdx)을 참고하세요. 섹션 전체를 생략하면 위 블록과 같습니다. 즉 연결 기능이 켜지고 uniPEQ의 공식 서버를 사용합니다.
+
+- `ENABLE` — `false`로 설정하면 섹션을 숨깁니다.
+- `SERVER` — 연결에 필요한 시그널링 서버 주소로, [uniPEQ_link](https://github.com/potatosalad775/uniPEQ_link) Worker입니다. 두 앱을 서로 소개하는 역할만 하며, 실제 EQ 데이터는 두 앱 사이를 직접 오갑니다. 자체 서버를 사용해도 QR 코드와 **uniPEQ 열기**는 동작합니다. 다만 uniPEQ에 입력한 코드는 uniPEQ의 서버에서 찾기 때문에 자체 서버의 연결을 찾지 못하며(패널의 코드 옆에 이 안내가 표시됩니다), uniPEQ의 App Link는 `link.unipeq.com`에 대해서만 검증되어 있으므로 QR 코드는 uniPEQ 대신 서버의 웹 페이지를 먼저 엽니다.
+
+연결은 `SERVER`로 WebSocket을, 상대 앱으로 WebRTC 연결을 엽니다. `Content-Security-Policy`를 사용하는 사이트는 `connect-src`에 `SERVER`(와 그 `wss:` 형태)를 허용해야 합니다.
 
 ### `SQUIGLINK`
 

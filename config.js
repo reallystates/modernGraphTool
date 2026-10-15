@@ -42,6 +42,7 @@ const CONFIG = {
 		ALLOW_REMOVING_PHONE_FROM_SELECTOR: true, // Setting it to false will prevent user from removing phone from selector.
 		SWITCH_PHONE_PANEL_ON_BRAND_CLICK: true, // Switch to phone list when brand button is clicked (in mobile UI)
 		HIDE_DEV_DONATE_BUTTON: false, // This option determines whether to hide "Donate" button on Misc Panel or not.
+		// SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD: false, // Show the Frequency Tutorial strip to first-time visitors
 		TARGET: {
 			ALLOW_MULTIPLE_LINE_PER_TYPE: true, // Display targets in multiple lines by 'type'. Adds a collapse button.
 			OMIT_TARGET_SUFFIX: true, // Omit the 'Target' suffix to save some space.
@@ -93,11 +94,14 @@ const CONFIG = {
 		]
 	},
 
-	// Shaded upper/lower preference-range overlay. Needs Bounds U.txt and
-	// Bounds D.txt in your data/ folder. → docs: PREFERENCE_BOUND
+	// Shaded upper/lower preference-range overlay, picked from a row in the target
+	// list. Each BOUND_LIST entry is a base target from your target folder, with an
+	// optional `name` and `upper` / `lower` bound files in data/ (default
+	// 'Bounds U.txt' / 'Bounds D.txt'). An empty list disables the feature.
+	// → docs: PREFERENCE_BOUND
 	PREFERENCE_BOUND: {
-		ENABLE_BOUND_ON_INITIAL_LOAD: false, // Show the bounds immediately on page load
-		BASE_DF_TARGET_FILE: 'KEMAR DF (KB006x) Target', // Reference DF target; "" disables the feature
+		ENABLE_BOUND_ON_INITIAL_LOAD: false, // Select the first bound on page load
+		BOUND_LIST: [{ target: 'KEMAR DF (KB006x)' }],
 		COLOR_FILL: 'rgba(180,180,180,0.2)',
 		COLOR_BORDER: 'rgba(120,120,120,0.5)'
 	},
@@ -210,7 +214,8 @@ const CONFIG = {
 
 	// Per-curve download button in the selection list. Exports the curve exactly
 	// as displayed — smoothing, normalization, target adjustments and EQ are
-	// baked in — as CrinGraph-style "Frequency dB" .txt files. Off by default.
+	// baked in — as CrinGraph-style "Frequency dB" .txt files (several go out as one
+	// .zip). On a sample set it offers every run alongside the average. Off by default.
 	// → docs: DOWNLOAD
 	// DOWNLOAD: {
 	//   ENABLED: true,
@@ -225,6 +230,14 @@ const CONFIG = {
 	// EQUALIZER: {
 	//   AUTOEQ_DEFAULT_BAND_COUNT: 8,
 	//   EQCAPS_URL: 'https://potatosalad775.github.io/eqcaps/v1/',
+	// },
+
+	// "Link with uniPEQ" in the Equalizer panel: edit the EQ live with the uniPEQ
+	// app, which writes it to the device connected there. On by default, through
+	// uniPEQ's own server. → docs: UNIPEQ_LINK
+	// UNIPEQ_LINK: {
+	//   ENABLE: true,
+	//   SERVER: 'https://link.unipeq.com',
 	// },
 
 	// Only active on *.squig.link domains: analytics, sponsor banner, shop links.

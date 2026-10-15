@@ -835,7 +835,7 @@ Each URL is tried in order and the first one that returns a valid document wins,
 
 Hardware EQ (formerly Device PEQ) reads and writes EQ directly on supported audio hardware — DACs, dongles, streamers and some headphones — from the browser, with no extra software. Once written, the EQ lives in the device’s own memory and keeps working away from the computer.
 
-It sits at the bottom of the Equalizer panel. For the workflow, see [Equalizing audio](/modernGraphTool/docs/guide-for-users/equalizing/#device-peq).
+It sits in the Equalizer panel, together with [Link with uniPEQ](/modernGraphTool/docs/features/unipeq-link/), which reaches a device through the uniPEQ app instead. Hardware EQ holds one connection at a time: once you connect a device here or start a link, the other way in is hidden until you disconnect or unlink. For the workflow, see [Equalizing audio](/modernGraphTool/docs/guide-for-users/equalizing/#device-peq).
 
 ## Connecting
 
@@ -898,7 +898,7 @@ Hardware EQ slots have no channel concept. A write sends the **L+R** bands and t
 
 ## Browser support
 
-Hardware EQ needs a Chromium-based browser — **Chrome, Edge or Opera**. Firefox and Safari implement none of WebHID, Web Serial or Web Bluetooth, so the panel shows a compatibility notice there instead of the connect buttons.
+Hardware EQ needs a Chromium-based browser — **Chrome, Edge or Opera**. Firefox and Safari implement none of WebHID, Web Serial or Web Bluetooth, so the panel shows a compatibility notice there instead of the connect buttons. [Link with uniPEQ](/modernGraphTool/docs/features/unipeq-link/) still works there.
 
 ## Operators
 
@@ -943,6 +943,14 @@ Two things to know:
 
 See [Equalizing audio](/modernGraphTool/docs/guide-for-users/equalizing/#per-channel-eq-l--r) for the workflow.
 
+## EQ one run of a sample set
+
+A [sample set](/modernGraphTool/docs/guide-for-admins/manage-data/#sample-sets) draws as the average of its runs, and by default that average is what the EQ applies to. When the runs are different fits — insertion depths, pad positions — the average is a fit nobody actually wears: it blurs the treble peaks that move with depth into one gentle bump, and AutoEQ fits to that blur.
+
+The source picker at the top of the panel lists a sample set’s runs under it. Pick one and the EQ curve, AutoEQ, the band handles and the hover readout all use that run; the device row itself (marked **Average**) goes back to the average. While EQ is on, the dimmed “before” curve is the picked run, and the EQ curve’s label names it — `IEM (EQ · Deep)`.
+
+The pick belongs to the variant it was made on. Switch the device to another variant and the EQ returns to the average, since run 2 of one set has nothing to do with run 2 of another. Share links don’t record the source at all, so a shared EQ opens on the average.
+
 ## EQ constraints
 
 An EQ constraint limits the band list to what a particular EQ engine accepts — a DAC’s hardware EQ, a music player’s equalizer, a fixed 10-band graphic EQ. The **constraint** button at the end of the band list’s toolbar picks one:
@@ -960,6 +968,42 @@ A constraint can do more than cap the band count. Each band slot has its own fil
 
 Importing a filter file switches back to *Default (unlimited)* first, so the file lands as written.
 
+## History & Compare
+
+The **History & Compare** section of the panel keeps earlier versions of your EQ so you can go back to one, keep it, or listen to two side by side.
+
+* **History** logs your edits automatically. A burst of changes — dragging a slider — becomes one entry. It lasts for the session and starts over when you pick another source device. The trash button clears it; an entry’s **⋯** menu deletes just that one.
+* **Bookmarks** keep an entry for good. Star a History entry to bookmark it; it is named after its strongest band and the date, and **⋯ → Rename** changes that. Bookmarks are stored in this browser only, separately on each site, and are listed for every device — your current device’s come first. They are removed one at a time from the Bookmarks tab, never by clearing History, and a browser keeps at most 200.
+
+### A/B comparison
+
+Press **A** or **B** on any two entries — in either tab, so A can be a bookmark and B a recent edit — then switch between them with the **A** and **B** buttons at the top. Two options appear once both are picked:
+
+* **Match loudness** plays the louder of the two at the quieter one’s level, so you compare tone rather than volume. It measures loudness the way streaming services do (K-weighted) and only ever turns the sound down. It applies to the audio player on this page only — not to [Hardware EQ](/modernGraphTool/docs/features/device-peq/) or the uniPEQ link, where the device or app owns the preamp — and it stops as soon as you edit a band, since you are no longer comparing A with B.
+* **Show on graph** draws the side that isn’t playing as a dashed line on top of the graph, so you can see what a switch changes.
+
+To keep an entry on the graph for longer, **⋯ → Add to graph** inserts it as a curve of its own: the current source device with that entry’s bands, which you can hide, recolor or remove like any other.
+
+### Entries that don’t fit the constraint
+
+An entry made under a looser [EQ constraint](#eq-constraints) — more bands, or values outside the active one’s ranges — is marked **Doesn’t fit** with the constraint’s name, and its A/B buttons are unavailable. Nothing reshapes it to fit: applying it would silently change what you saved. Switch back to a constraint it fits, or rebuild it under the new one.
+
+## Importing filter files
+
+**Import EQ** reads Equalizer APO’s parametric format, the text AutoEq, squig.link tools and APO itself write:
+
+```plaintext
+Preamp: -6.0 dB
+Channel: L
+Filter 1: ON PK Fc 40 Hz Gain 5.0 dB Q 1.41
+Channel: R
+Filter: ON PK Fc 45 Hz BW Oct 0.7 Gain 4.5 dB
+```
+
+* **Channels** — `Channel: L` or `Channel: 1` sends the filters that follow to the left ear, `R` or `2` to the right; `ALL`, `L R` and `1 2` mean both. Other layouts import as both ears.
+* **Filters** — `PK`, plus low and high shelves (`LSC`/`LS`, `HSC`/`HS`). Bandwidth (`BW Oct`) and a shelf slope (`LSC 12 dB Fc …`) convert to Q exactly; a shelf with neither gets APO’s default 12 dB/oct. The filter number is optional, as in APO, and `OFF` imports as a disabled band.
+* **Skipped** — filter types the equalizer can’t model (band-pass, notch, all-pass, low/high-pass, the corner-frequency `LS 6dB` / `HS 12dB` shelves) are left out, and a warning says how many. `Preamp:` is ignored; the preamp is always derived from the filters.
+
 ## AutoEQ band count
 
 **Run AutoEQ** generates as many bands as the filter list already holds, so adding five bands before running is how you ask for a five-band result. With an empty list it falls back to **8** bands.
@@ -967,6 +1011,8 @@ Importing a filter file switches back to *Default (unlimited)* first, so the fil
 Operators can change that fallback with `EQUALIZER.AUTOEQ_DEFAULT_BAND_COUNT` — see [Customizing the Page](/modernGraphTool/docs/guide-for-admins/customize-page/#equalizer). Either way, the active [constraint](#eq-constraints)’s band cap wins: a connected 5-band device gets 5, and a constraint with no cap at all is held to 32. AutoEQ also stays inside the constraint’s frequency, Q and gain ranges, gives the shelves their own gain range where the constraint does, and leaves the shelves out where it has no slot for them.
 
 The count is the total. With **Use shelf filters** on, two of those bands are the low and high shelf: ten bands is eight peaking filters plus the pair. Below four bands the shelves are dropped, because spending the whole budget on them corrects nothing but overall tilt.
+
+AutoEQ makes peaking and shelf filters only. Any other band in the list — a high or low pass, a band pass, a notch or an all-pass, from an imported config or read from a device — stays where it is, and the fit corrects around it: its response counts as part of the source curve, and its slot comes out of the band count.
 
 ## Auto-apply
 
@@ -980,7 +1026,8 @@ Once a run lands, **Run AutoEQ** becomes **Recalculate**, and the **Auto-apply**
 It switches itself off, and says why, rather than overwrite something it can no longer vouch for:
 
 * the filters are edited by hand — adding, removing or dragging a band, undo, import, or a History & Compare switch;
-* a different source device or target is selected, or the target is removed;
+* a different source device, sample run or target is selected, or the target is removed;
+* the source switches to another variant while a sample run was being fitted;
 * the EQ preset changes;
 * the fallback optimizer answered (see [The optimizer](#the-optimizer)). It is too slow to follow every change, so the switch stays unavailable until a run succeeds with turboEQ.
 
@@ -1010,15 +1057,15 @@ turboEQ can also turn down a particular request while loading fine — Treble-sa
 
 The Frequency Tutorial overlays the graph with labeled frequency regions — Sub Bass, Bass, Lower Mids, Upper Mids, Presence and Brilliance — each with a short description of what it contributes to the sound. It’s an aid for visitors still learning to read FR graphs. For how to use it, see [Appearance and language](/modernGraphTool/docs/guide-for-users/appearance-and-language/#frequency-tutorial).
 
-Visitors toggle it from the area above the graph toolbar. The labels are UI strings, so they follow the visitor’s chosen language.
+The strip is hidden by default to leave room for the graph — it matters most on mobile, where it would sit between the graph and every panel. Visitors show it with the **Freq. Guide** button in the graph toolbar (on mobile, in the Graph panel), and the choice is remembered on their device. Clicking a region’s button highlights it on the graph and shows its description. The labels are UI strings, so they follow the visitor’s chosen language.
 
-Operators have nothing to configure. The text ships with the app’s translations, so changing it means a source build — see [Internationalization](/modernGraphTool/docs/guide-for-developers/i18n/#frequency-tutorial-text).
+Operators who want first-time visitors to see it can set [`INTERFACE.SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD`](/modernGraphTool/docs/guide-for-admins/customize-page/#show_frequency_tutorial_on_initial_load) to `true`; a visitor who turns it off stays off. The text ships with the app’s translations, so changing it means a source build — see [Internationalization](/modernGraphTool/docs/guide-for-developers/i18n/#frequency-tutorial-text).
 
 # Preference Bound
 
 The Preference Bound draws a shaded band on the graph showing the range of frequency responses most listeners prefer, based on listening-preference research. It answers “how far from the middle of the road is this tuning” rather than “does it match one exact line”.
 
-Visitors toggle it from the graph toolbar. For how to read it, see [Targets and preferences](/modernGraphTool/docs/guide-for-users/targets-and-preferences/#preference-bound).
+Visitors pick it from the **Pref. Bound** row at the bottom of the target list. The row is single-select: clicking a bound shows it, clicking the active one again hides the band. For how to read it, see [Targets and preferences](/modernGraphTool/docs/guide-for-users/targets-and-preferences/#preference-bound).
 
 ## How the band is aligned
 
@@ -1034,7 +1081,7 @@ The band is widest in the bass (about 6 dB at 50 Hz versus 2 dB at 500 Hz). Alig
 
 ## Setting it up
 
-The toolbar button only appears once the operator has shipped the data and configured it under [`PREFERENCE_BOUND`](/modernGraphTool/docs/guide-for-admins/customize-page/#preference_bound).
+The row only appears once the operator has shipped the data and configured it under [`PREFERENCE_BOUND`](/modernGraphTool/docs/guide-for-admins/customize-page/#preference_bound).
 
 It needs three files:
 
@@ -1047,7 +1094,42 @@ It needs three files:
   ...
   ```
 
-* **The base diffuse field target**, named by `BASE_DF_TARGET_FILE` without its `.txt` extension. It is read from your regular target folder (`PATH.TARGET_MEASUREMENT`, `./data/target/` by default), so don’t copy it anywhere else. `"KEMAR DF (KB006x) Target"` loads `./data/target/KEMAR DF (KB006x) Target.txt`.
+* **The base diffuse field target**, named by a `BOUND_LIST` entry’s `target` without its `.txt` extension. It is read from your regular target folder (`PATH.TARGET_MEASUREMENT`, `./data/target/` by default), so don’t copy it anywhere else. `"KEMAR DF (KB006x)"` loads `./data/target/KEMAR DF (KB006x) Target.txt` — the `Target` suffix is added when missing, as in `TARGET_MANIFEST`.
+
+```javascript
+PREFERENCE_BOUND: {
+  BOUND_LIST: [{ target: "KEMAR DF (KB006x)" }],
+},
+```
+
+## Offering more than one bound
+
+`BOUND_LIST` can hold several entries, and each becomes a chip in the row. Use it when your database spans more than one measurement rig — each rig’s measurements need a base target of their own — or to let visitors compare different bound files against the same target.
+
+```javascript
+PREFERENCE_BOUND: {
+  ENABLE_BOUND_ON_INITIAL_LOAD: true, // selects the first entry
+  BOUND_LIST: [
+    { target: "KEMAR DF (KB006x)" },
+    { target: "5128 DF", upper: "Bounds U 5128.txt", lower: "Bounds D 5128.txt" },
+    { name: "KEMAR (wide)", target: "KEMAR DF (KB006x)", upper: "Bounds U wide.txt", lower: "Bounds D wide.txt" },
+  ],
+},
+```
+
+* `target` — the base target, as above. Required.
+* `name` — the chip label. Defaults to the target name without `Target`. Names must be unique; a repeated one is skipped. Supports the same `{ default, i18n }` form as other operator strings.
+* `upper` / `lower` — the bound files, relative to `data/`. Default to `Bounds U.txt` and `Bounds D.txt`.
+
+With two or more entries, the graph names the active bound in its top-left corner, one line below the baseline label, so a screenshot shows which bound it was taken with.
+
+Caution
+
+The bound files are offsets from the base they were derived against. Pairing a set of bounds with an unrelated target — a Harman curve instead of a diffuse field target, say — draws a band the research behind those bounds doesn’t support. Keep each entry’s target the one its bounds were made for.
+
+Upgrading
+
+`BASE_DF_TARGET_FILE` from earlier configs still works: when `BOUND_LIST` is absent, it becomes a single entry with the default bound files.
 
 # Site Selector
 
@@ -1118,7 +1200,7 @@ Each URL is tried in order and the first valid document wins, so a mirror can be
 Deployments hosted on a `*.squig.link` domain get a few network-wide features on top of the usual ones. They switch on automatically there and stay dormant on any other host.
 
 * **Shop links** — when a loaded device has an entry in the squig.link shop database, a **Buy Now** button links to the sponsor’s listing.
-* **Sponsor banner** — a sponsor dialog on a visitor’s first visit, with content served by the squig.link network.
+* **Sponsor banner** — a sponsor dialog with content served by the squig.link network. Dismissing it hides that sponsor for a day across every squig.link site, CrinGraph-based ones included; a new sponsorship appears straight away.
 * **Analytics** — Google Analytics 4 (gtag.js), sending to several measurement IDs at once so a site can report both to squig.link and to its own property.
 
 Each can be switched off, and the analytics IDs set, under [`SQUIGLINK`](/modernGraphTool/docs/guide-for-admins/customize-page/#squiglink) in `config.js`.
@@ -1154,6 +1236,49 @@ All of it is set under [`TARGET_CUSTOMIZER`](/modernGraphTool/docs/guide-for-adm
 * **The filters.** `FILTERS` defines the sliders. Setting it **replaces** the default set rather than extending it.
 * **The presets.** `FILTER_PRESET` maps preset names to slider values.
 * **Initial adjustments.** `INITIAL_TARGET_FILTERS` applies slider values to a target as soon as it loads, so a deployment can ship its preferred variant of a target by default.
+
+# uniPEQ Link
+
+**Link with uniPEQ** shares the Equalizer panel’s band list with [uniPEQ](https://unipeq.com), an EQ app for Android and the web that writes EQ to a device connected to it. You edit with the graph and AutoEQ here, and uniPEQ writes every change to the device: a phone dongle you can’t plug into the computer, say, or a device the browser can’t reach.
+
+It sits in the Equalizer panel’s [Hardware EQ](/modernGraphTool/docs/features/device-peq/) section, under the connect buttons. Hardware EQ holds one connection at a time, so the link is hidden while a device is connected in this browser, and the connect buttons are hidden while the link is on. **Disconnect** or **Unlink** to switch.
+
+## What uniPEQ is
+
+uniPEQ is a free, open-source companion app for the parametric EQ built into many USB DACs, dongles, headphones and IEMs. It reads the EQ a device holds, lets you edit it on a graph, and writes it back. It knows the same devices as [Hardware EQ](/modernGraphTool/docs/features/device-peq/), since both run on [eqcaps](https://github.com/potatosalad775/eqcaps).
+
+* **On a computer**, it runs at [unipeq.com](https://unipeq.com) in Chrome, Edge or another Chromium-based browser.
+* **On Android**, it is an app: the APK is on [GitHub Releases](https://github.com/potatosalad775/uniPEQ/releases/latest).
+
+In a Chromium-based browser on a computer, Hardware EQ already writes to a device from this page. The link matters where this browser can’t reach the device. The main case is a phone: a phone’s browser can’t reach USB devices, so tuning against a measurement used to need a computer. Open this site on the phone, link it with uniPEQ, and the EQ you build here plays on the device plugged into that phone. The same goes for Firefox or Safari on a computer, linked with uniPEQ on a phone.
+
+No device at hand? uniPEQ’s **demo device** lets you try the link without one.
+
+## Linking
+
+**Link with uniPEQ** shows a code and a QR code. Then, in uniPEQ:
+
+* **On the same Android phone**, press **Open uniPEQ**. uniPEQ opens and joins.
+* **On another phone**, scan the QR code with the camera. It opens uniPEQ, or a page that links to it when uniPEQ isn’t installed.
+* **On a computer**, press **Open uniPEQ**. uniPEQ on the web opens in a new tab and joins. Keep this tab open while you’re linked.
+* **Anywhere else**, type the code in uniPEQ’s **Link with modernGraphTool**.
+
+uniPEQ then asks whether to link with this site, by its address. Nothing reaches the device until you say yes there. If the two apps hold different EQs, this page asks which one to keep: **Use uniPEQ’s EQ**, or **Send this EQ to uniPEQ**. Sending turns switched-off bands into 0 dB bands and leaves left- or right-only bands out, and the question says how many of each. An empty band list here takes uniPEQ’s without asking.
+
+## While linked
+
+There is one band list, and both apps edit it live. uniPEQ holds it and writes the device; this page shows each change it makes, and the last change wins when both apps edit the same band at once. Each app keeps its own undo history, and a change made in the other app is one step in it.
+
+* The list is one list for both ears, as a device’s is: the channel picker stays on **L+R**, and bands have no on/off switch.
+* uniPEQ’s device shows in [Hardware EQ](/modernGraphTool/docs/features/device-peq/) as the connected device, with its limits as the active [EQ constraint](/modernGraphTool/docs/features/equalizer/#eq-constraints). **Read**, **Write**, **Device EQ** and **Auto-write** there act on uniPEQ, and a write uniPEQ can’t make exactly asks for review in both apps; either app’s answer closes both.
+* While uniPEQ’s device is reconnecting, the list can’t be edited.
+* If uniPEQ stops answering — the phone asleep, uniPEQ closed — the panel says so, and the link picks up again by itself when it answers. If Android paused uniPEQ in the background, the panel says for how long.
+
+Reloading this page keeps the link without asking uniPEQ again. **Unlink** in either app ends it, and so does ten minutes of silence.
+
+## Privacy
+
+The link server only introduces the two apps. The EQ, the device’s name and its limits travel between them over an encrypted WebRTC connection — directly, or through a relay that can’t read it when a network blocks direct connections — and nothing is kept once the link ends. Operators can point the link at their own server, or turn it off: see [Customizing the Page](/modernGraphTool/docs/guide-for-admins/customize-page/#unipeq_link).
 
 # Guide for Operators
 
@@ -1292,6 +1417,7 @@ These drive the SVG rendering where Tailwind classes cannot be used:
   --color-graph-axis-label: rgba(0, 0, 0, 0.6); /* Axis labels (Hz, dB) */
   --color-graph-grid-text: rgba(0, 0, 0, 0.5); /* Grid value labels */
   --color-graph-baseline: rgba(0, 0, 0, 0.25); /* Baseline indicator */
+  --color-graph-compare: rgba(0, 0, 0, 0.55); /* History & Compare A/B ghost trace */
 }
 
 
@@ -1301,6 +1427,16 @@ These drive the SVG rendering where Tailwind classes cannot be used:
   --color-graph-axis-label: rgba(255, 255, 255, 0.6);
   --color-graph-grid-text: rgba(255, 255, 255, 0.5);
   --color-graph-baseline: rgba(255, 255, 255, 0.25);
+  --color-graph-compare: rgba(255, 255, 255, 0.55);
+}
+```
+
+The [uniPEQ Link](/modernGraphTool/docs/features/unipeq-link/) QR code has two more. They have no `.dark` value on purpose: the code stays dark on light in both modes, since not every camera app reads an inverted one. A `theme.css` without them falls back to the base content and background colors.
+
+```css
+:root {
+  --color-qr-dark: oklch(20% 0.042 265.755); /* QR code modules */
+  --color-qr-light: oklch(100% 0 0); /* QR code background */
 }
 ```
 
@@ -1491,6 +1627,7 @@ INTERFACE: {
   PANEL_POSITION: "left",
   ALLOW_REMOVING_PHONE_FROM_SELECTOR: true,
   SWITCH_PHONE_PANEL_ON_BRAND_CLICK: true,
+  SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD: false,
   TARGET: {
     ALLOW_MULTIPLE_LINE_PER_TYPE: true,
     OMIT_TARGET_SUFFIX: true,
@@ -1525,6 +1662,12 @@ Sets whether to remove an already added item from the graph when reselected in t
 Sets whether to automatically switch to the phone list when a brand button is clicked in the mobile UI.
 
 * Choose `true` or `false`.
+
+#### `SHOW_FREQUENCY_TUTORIAL_ON_INITIAL_LOAD`
+
+Sets whether the [Frequency Tutorial](/modernGraphTool/docs/features/frequency-tutorial/) strip is shown under the graph on a visitor’s first load. Visitors toggle it with the **Freq. Guide** button in the graph toolbar, and their choice is remembered over this default.
+
+* Choose `true` or `false` (default `false` — hidden, to keep the space for the graph and panels).
 
 #### `TARGET`
 
@@ -1909,23 +2052,35 @@ Multilingual Support
 ```javascript
 PREFERENCE_BOUND: {
   ENABLE_BOUND_ON_INITIAL_LOAD: false,
-  BASE_DF_TARGET_FILE: "KEMAR DF (KB006x) Target",
+  BOUND_LIST: [
+    { target: "KEMAR DF (KB006x)" },
+    { name: "5128", target: "5128 DF", upper: "Bounds U 5128.txt", lower: "Bounds D 5128.txt" },
+  ],
   COLOR_FILL: "rgba(180,180,180,0.2)",
   COLOR_BORDER: "rgba(120,120,120,0.5)",
 },
 ```
 
-Configures the preference bound overlay that draws a shaded upper/lower preference range on the graph.
+Configures the preference bound overlay that draws a shaded upper/lower preference range on the graph. Visitors pick a bound from a row at the bottom of the target list — one at a time, or none.
 
-* `ENABLE_BOUND_ON_INITIAL_LOAD`: Shows bounds immediately on page load.
+* `ENABLE_BOUND_ON_INITIAL_LOAD`: Selects the first `BOUND_LIST` entry on page load.
   * Choose `true` or `false`.
-* `BASE_DF_TARGET_FILE`: The reference DF target file used for compensation.
+
+* `BOUND_LIST`: The selectable bounds. An empty list disables the feature. Each entry takes:
+
+  * `target` (required): The base DF target, as named in your target folder. `Target` is appended when missing.
+  * `name` (optional): The chip label; defaults to the target name. Must be unique. Accepts `{ default, i18n }`.
+  * `upper` / `lower` (optional): Bound files relative to `data/`; default `Bounds U.txt` / `Bounds D.txt`.
+
+* `BASE_DF_TARGET_FILE` (legacy): Used only when `BOUND_LIST` is absent, as a single entry with the default bound files.
+
 * `COLOR_FILL`: Fill color of the shaded area (CSS color value).
+
 * `COLOR_BORDER`: Border color of the shaded area (CSS color value).
 
 Data Files
 
-Bound data files (`Bounds U.txt` / `Bounds D.txt`) must exist in the `data/` folder for the preference bound to display.
+Each entry’s bound files (`Bounds U.txt` / `Bounds D.txt` unless set) must exist in the `data/` folder for its bound to display. See [Preference Bound](/modernGraphTool/docs/features/preference-bound/#offering-more-than-one-bound) for when to offer several.
 
 ### `TARGET_CUSTOMIZER`
 
@@ -2015,7 +2170,9 @@ DOWNLOAD: {
 },
 ```
 
-Adds a per-curve download button to the selection list. Exports the curve exactly as displayed — smoothing, normalization, target adjustments and parametric EQ are all baked in — as one tab-separated `Frequency` / `dB` `.txt` file per channel (`Name Suffix L.txt`, `Name Suffix R.txt`, …).
+Adds a per-curve download button to the selection list. Exports the curve exactly as displayed — smoothing, normalization, target adjustments and parametric EQ are all baked in — as one tab-separated `Frequency` / `dB` `.txt` file per displayed channel (`Name Suffix L.txt`, `Name Suffix R.txt`, …). More than one file is saved as a single `.zip`.
+
+For a [sample set](/modernGraphTool/docs/guide-for-admins/manage-data/#sample-sets) the button asks first: **Average only** exports the averaged curve, and **All samples** adds every run on the same channels (`Name Suffix - Sample 1 L.txt`, or the run’s label in place of `Sample 1`).
 
 * `ENABLED`: Shows the download button. Off by default.
 
@@ -2032,6 +2189,22 @@ Defaults for the Equalizer panel. See [Equalizer](/modernGraphTool/docs/features
 
 * `AUTOEQ_DEFAULT_BAND_COUNT`: How many filter bands **Run AutoEQ** generates when the filter list is empty. Defaults to `8`. A non-empty list always wins, so users can still pick a count by adding or removing bands before running. Values below `1` are ignored, and the active EQ constraint’s band cap still applies — a connected 5-band device gets 5.
 * `EQCAPS_URL`: Where [Hardware EQ](/modernGraphTool/docs/features/device-peq/) and the [EQ constraint](/modernGraphTool/docs/features/equalizer/#eq-constraints) picker read device and app EQ limits from — a copy of the [eqcaps](https://github.com/potatosalad775/eqcaps) `/v1/` channel. Defaults to the official one on GitHub Pages; set it for a mirror or a self-hosted copy. The URL must serve `index.json` and `profiles/` with CORS. If it can’t be reached, the built-in constraints still work and devices from known makers still connect.
+
+### `UNIPEQ_LINK`
+
+```javascript
+UNIPEQ_LINK: {
+  ENABLE: true,
+  SERVER: 'https://link.unipeq.com',
+},
+```
+
+The **Link with uniPEQ** section of the Equalizer panel. See [uniPEQ Link](/modernGraphTool/docs/features/unipeq-link/). Leaving the whole section out is the same as the block above: the link is on, through uniPEQ’s own server.
+
+* `ENABLE`: Set `false` to hide the section.
+* `SERVER`: The link’s signaling server, a [uniPEQ_link](https://github.com/potatosalad775/uniPEQ_link) Worker. It only introduces the two apps; the EQ then travels directly between them. On your own server, the QR code and **Open uniPEQ** still work, but a code typed into uniPEQ looks on uniPEQ’s server and won’t find yours (the panel says so next to the code), and the QR code opens the server’s web page first rather than uniPEQ itself, since uniPEQ’s App Link is verified for `link.unipeq.com` only.
+
+The link opens a WebSocket to `SERVER` and a WebRTC connection to the other app. A site with a `Content-Security-Policy` must allow `SERVER` (and its `wss:` form) in `connect-src`.
 
 ### `SQUIGLINK`
 
@@ -2253,7 +2426,7 @@ Users who want to force a refresh in the meantime can clear their browser cache 
 
 `VERSIONS_URL` defaults to a `raw.githubusercontent.com` URL derived from `BASE`. If your `BASE` isn’t a recognizable jsDelivr `gh/` URL (because you’re self-hosting, for example), the derivation returns `null` and the loader falls back to `${BASE}/versions.json`. Override `VERSIONS_URL` explicitly when neither of those is right. The URL shape the loader expects is documented in [cdn/loader.js:186-196](https://github.com/potatosalad775/modernGraphTool/blob/main/cdn/loader.js#L186-L196).
 
-All the *other* files (app chunks, CSS, preloads) still come from jsDelivr with its normal cache behavior, which is minutes to hours depending on the edge location. Users who want to force-refresh to the newest version can clear their browser cache or hard-reload.
+`boot.json` comes from jsDelivr and is purged on every release. The app chunks and CSS it lists are pinned to the commit that published them (`…@<commit>/v{version}/_app/…`), so they never go stale: jsDelivr and browsers cache them for a year, and a new release always ships under new URLs. That’s also why your users don’t pay for a cold jsDelivr cache on every visit — files under the moving `@cdn` branch only stay at jsDelivr’s edge for 12 hours.
 
 ### Self-hosting the CDN assets
 
@@ -3011,6 +3184,7 @@ Sample sets are declared per variant, inside a `variants` array:
     {
       "suffix": "Leather Pad",
       "file": "HD600 Leather",
+      "description": "Dekoni Elite Hybrid pads, reseated between runs",
       "samples": {
         "count": 5,
         "labels": ["Center", "Front", "Back", "Up", "Down"],
@@ -3036,6 +3210,7 @@ Each entry of `variants` takes:
 
 * `suffix` (String, Optional): The variant label shown in the device selector dropdown.
 * `file` (String, Optional): Base filename for the main L/R pair — `{file} L.txt` / `{file} R.txt`. Can be omitted when `samples.files` names the measurements instead.
+* `description` (String, Optional): A plain-text note about the variant, shown under its suffix in the variant picker, e.g. `"Foam tips, deep insertion"`. Use it for anything that explains the variant; it never appears on the graph. Plain variants can have one too, with no sample set.
 * `samples` (Number or Object, Optional): The sample set. A bare number is shorthand for `{ "count": n }`.
 
 And `samples`, in object form:
@@ -3044,7 +3219,11 @@ And `samples`, in object form:
 * `files` (Array of Strings): Explicit base filename per run, loaded as `{name} L.txt` and `{name} R.txt`. Use this **or** `count`, not both.
 * `labels` (Array of Strings, Optional): A human-readable name per run — shown in the sample picker and on the graph label, e.g. `HD 600 Leather Pad (Center, R)`. Defaults to the `files` values, or to “Sample 1”, “Sample 2”… for the `count` form.
 * `display` (Array of Strings, Optional): Any combination of `avg`, `curves` and `fill`. Seeds the toggles; the user can still change them per curve. Defaults to `SAMPLES.DEFAULT_DISPLAY` in `config.js`.
-* `description` (String, Optional): A short note shown beside the device name describing what varies, e.g. `"(Fit Position)"`, `"(Rig Variance)"`, `"(Insertion Depth)"`.
+* `description` (String, Optional): A short caption for the set, describing what varies, e.g. `"(Fit Position)"`, `"(Rig Variance)"`, `"(Insertion Depth)"`. It is shown beside the device name and added to the graph label while the deviation fill is on, so keep it short.
+
+Two descriptions, two places
+
+A variant’s own `description` and its `samples.description` don’t merge. The variant picker shows the variant’s `description`, falling back to `samples.description` when the variant has none. The device row and the graph label only ever show `samples.description`. Set both when you want a longer explanation in the picker and a short tag on the graph.
 
 `count` versus `files` is only a **filename convention**, not a feature difference — labels, fills and per-run curves all work with either.
 
@@ -3575,7 +3754,7 @@ To reset a curve back to its auto-assigned color, remove it and reload it from t
 
 The **Frequency Tutorial** is an overlay that labels each region of the graph (sub-bass, bass, lower mids, upper mids, presence, brilliance) with a short description of what lives there musically.
 
-Toggle it from the area above the graph toolbar. It’s a particularly useful aid if you’re:
+It’s hidden by default. Turn it on with the **Freq. Guide** button in the graph toolbar (on mobile, in the Graph panel); the strip appears under the graph and stays on until you turn it off. It’s a particularly useful aid if you’re:
 
 * New to reading frequency response graphs.
 * Explaining a headphone’s sound to someone who doesn’t yet have the vocabulary.
@@ -3703,11 +3882,11 @@ You can **export** your current filter set as a text file (compatible with commo
 * Keeping a library of presets for different headphones.
 * Moving an EQ between modernGraphTool and a system-wide EQ application.
 
-The import/export controls live inside the filter list. See [Equalizer](/modernGraphTool/docs/features/equalizer/) for format details.
+The import/export controls live inside the filter list. See [Importing filter files](/modernGraphTool/docs/features/equalizer/#importing-filter-files) for format details.
 
 Per-channel bands survive the round trip. The exported file uses Equalizer APO’s `Channel:` syntax — a `Channel: ALL` section for the shared bands, then `Channel: L` and `Channel: R` — and import reads it back into the same buckets. An EQ with no per-channel bands exports without any `Channel:` lines at all, exactly as before, so existing presets and other tools are unaffected.
 
-The **Graphic EQ** export is a single curve with no channel syntax, so when you have per-channel bands it writes two files instead of one — an `L` and an `R`, each combining the shared bands with that ear’s own.
+The **Graphic EQ** export is a single curve for both ears, with no channel syntax and no way to switch a band off. It writes only the shared bands that are turned on: disabled bands are left out, and so are `L` / `R` bands, with a warning saying how many were dropped. The button is unavailable until at least one shared band is on.
 
 ***
 
@@ -3870,13 +4049,9 @@ Toggle **Inspection** (magnifier icon) on and a small readout follows your curso
 
 On mobile, tap-and-drag instead of hovering. Toggle inspection off when you don’t need it — the cursor tracking gets in the way otherwise.
 
-## Preference Bound toggle
-
-The **preference bound** button toggles a shaded region that represents a statistical range of “acceptable” tunings rather than a single target line. See [Preference Bound](/modernGraphTool/docs/features/preference-bound/) for the full story. The button only appears when the site has configured the bound data files — if it’s missing, the feature isn’t available on that deployment.
-
 ## Frequency Tutorial
 
-The **Frequency Tutorial** is a labeled overlay that names each region of the graph — sub-bass, bass, lower mids, upper mids, presence, brilliance — with a short description of what lives there. Toggle it from the area above the graph toolbar. If you’re still building intuition for which part of the graph corresponds to which part of a song, leave this on for a while. Full docs: [Frequency Tutorial](/modernGraphTool/docs/features/frequency-tutorial/).
+The **Frequency Tutorial** is a labeled overlay that names each region of the graph — sub-bass, bass, lower mids, upper mids, presence, brilliance — with a short description of what lives there. It’s hidden by default — turn it on with the **Freq. Guide** button in the graph toolbar, and it stays on for your next visit. If you’re still building intuition for which part of the graph corresponds to which part of a song, leave this on for a while. Full docs: [Frequency Tutorial](/modernGraphTool/docs/features/frequency-tutorial/).
 
 ## Screenshot, Share, and Shop Link
 
@@ -4001,7 +4176,7 @@ When your browser window is at least 1000 pixels wide, modernGraphTool uses the 
 * The graph area sits on the **left**, taking up most of the space.
 * The panel area sits on the **right**, fixed-width but resizable.
 * Between them is a thin **drag divider**. Grab it and drag left or right to change how much space each region gets.
-* Underneath the graph you’ll find the **graph toolbar** (normalize, smoothing, screenshot, and so on) along with the frequency-tutorial strip and a tiny **keyboard shortcut bar** at the very bottom of the graph column.
+* Underneath the graph you’ll find the **graph toolbar** (normalize, smoothing, screenshot, and so on) along with the frequency-tutorial strip (when turned on with **Freq. Guide**) and a tiny **keyboard shortcut bar** at the very bottom of the graph column.
 * The **selection list** (your loaded curves) lives inside the **Graph panel** on the right — not under the graph — so you switch to the Graph panel when you want to adjust a specific curve.
 
 ## Mobile layout
@@ -4164,7 +4339,7 @@ Roughly speaking, here’s what different regions of the X axis correspond to by
 | Presence   | 2 – 5 kHz    | Consonants, bite, “forwardness”                     |
 | Brilliance | 5 – 20 kHz   | Cymbal shimmer, air, top-end sparkle                |
 
-modernGraphTool has an interactive version of this table built in. Turn on the [Frequency Tutorial](/modernGraphTool/docs/features/frequency-tutorial/) overlay from the Graph panel and labels appear directly on the graph.
+modernGraphTool has an interactive version of this table built in. Turn on the [Frequency Tutorial](/modernGraphTool/docs/features/frequency-tutorial/) overlay with the **Freq. Guide** button in the graph toolbar and labels appear directly on the graph.
 
 ## The bumps aren’t noise
 
@@ -4310,7 +4485,7 @@ The full feature doc with all the config options is at [Target Customizer](/mode
 
 In addition to a single target line, research says there’s usually a **range** of tunings most listeners find acceptable — not one exact curve. modernGraphTool can draw that range as a shaded region on top of the graph, called the **preference bound**.
 
-Toggle the preference bound from the graph toolbar. When it’s on:
+Turn the preference bound on from the **Pref. Bound** row at the bottom of the target list. Some sites offer more than one bound — for example one per measurement rig — and only one shows at a time; click the active one again to hide it. When it’s on:
 
 * A **shaded area** appears, representing the upper and lower limits of the acceptable region.
 * The area is anchored to a configured **base target** — usually a diffuse-field target — so the bound moves sensibly as you change the target selection.
@@ -4318,7 +4493,7 @@ Toggle the preference bound from the graph toolbar. When it’s on:
 
 This isn’t a pass/fail test. A headphone that ducks outside the bound in one region might still be enjoyable — it just means it’s an opinionated tuning rather than a safely neutral one. Treat the bound as “how far from the middle of the road” rather than “right or wrong”.
 
-The preference bound needs data files the operator has to ship, so on sites that haven’t configured it the toggle button doesn’t appear. See [Preference Bound](/modernGraphTool/docs/features/preference-bound/) for the full feature doc.
+The preference bound needs data files the operator has to ship, so on sites that haven’t configured it the row doesn’t appear. See [Preference Bound](/modernGraphTool/docs/features/preference-bound/) for the full feature doc.
 
 ## Recommended workflow
 
@@ -4617,7 +4792,7 @@ If your fork isn’t listed here, it almost certainly behaves like one of these 
    * `assets/pref_bounds/Bounds L.txt` → `data/Bounds U.txt`
    * `assets/pref_bounds/Bounds R.txt` → `data/Bounds D.txt`
 
-   Also make sure your compensation baseline (usually a KEMAR DF or similar) is present in `data/target/`, and record its filename (without extension) — you’ll set `PREFERENCE_BOUND.BASE_DF_TARGET_FILE` to it in the next step.
+   Also make sure your compensation baseline (usually a KEMAR DF or similar) is present in `data/target/`, and record its filename (without extension) — you’ll set it as the `target` of a `PREFERENCE_BOUND.BOUND_LIST` entry in the next step.
 
 4. **Generate a new `config.js`** — CrinGraph’s config format is incompatible with v2, so the cleanest approach is to build a fresh one using the [**Config Editor**](/modernGraphTool/docs/config-generator/), referencing your old config for the values. A few common field mappings to speed you along:
 
@@ -4636,11 +4811,11 @@ If your fork isn’t listed here, it almost certainly behaves like one of these 
    | `page_title`, `page_description`                                      | Set in `index.html` `<title>` / `<meta>` (step 6)                      |
    | `themingEnabled`, `alt_layout`, `alt_*` flags                         | Not needed — v2’s theme and layout are always on                       |
    | `extraEQBands`, `extraEQplugins`                                      | Not needed — v2 has built-in Interactive EQ and Hardware EQ            |
-   | `preference_bounds_dir`, `preference_bounds_name`                     | `PREFERENCE_BOUND.BASE_DF_TARGET_FILE` + file location in `data/`      |
+   | `preference_bounds_dir`, `preference_bounds_name`                     | `PREFERENCE_BOUND.BOUND_LIST` + file location in `data/`               |
    | `tiltableTargets`, `compTargets`                                      | `TARGET_CUSTOMIZER.CUSTOMIZABLE_TARGETS`                               |
    | `default_tilt`, `default_bass_shelf`, `default_ear`, `default_treble` | `TARGET_CUSTOMIZER.INITIAL_TARGET_FILTERS`                             |
    | `allowSquigDownload`, `analyticsEnabled`                              | `SQUIGLINK.ENABLE_*` fields                                            |
-   | `default_DF_name`                                                     | Used as the name in `PREFERENCE_BOUND.BASE_DF_TARGET_FILE`             |
+   | `default_DF_name`                                                     | Used as the `target` in `PREFERENCE_BOUND.BOUND_LIST`                  |
 
    For the field-by-field reference of every v2 option, see [Customizing the Page → `config.js`](/modernGraphTool/docs/guide-for-admins/customize-page/#changing-basic-settings-configjs).
 
@@ -4801,6 +4976,16 @@ Full explanation and worked examples: [Why `BASE_PATH` is almost always required
 Everything that isn’t the app bundle itself (data, config, theme, Preference Bound files) is identical between the two options. You can switch back and forth by swapping your `index.html` file and optionally adding or removing the `CDN_MODE` section from `config.js`. There’s no lock-in.
 
 # modernGraphTool v2 Changelog
+
+### v2.2.4
+
+* Feat: Device PEQ is now **Hardware EQ**, rebuilt on [eqcaps](https://github.com/potatosalad775/eqcaps), an open database of what each device’s EQ accepts. See [Hardware EQ](/modernGraphTool/docs/features/device-peq/).
+* Feat: Added a **Device EQ** control that switches the device’s preset, or bypasses its EQ, the moment you change it.
+* Feat: Added **Auto-write changes** for Hardware EQ, which writes each edit to the connected device a moment after you stop editing. Off by default. See [Writing automatically](/modernGraphTool/docs/features/device-peq/#writing-automatically).
+* Feat: The EQ constraint picker is back, now with software and hardware EQ profiles from eqcaps alongside the built-in ones. Constraints cover per-band filter types and frequency, Q and gain ranges and steps, and AutoEQ stays inside them. See [EQ constraints](/modernGraphTool/docs/features/equalizer/#eq-constraints).
+* Feat: Added `EQUALIZER.EQCAPS_URL` to point Hardware EQ and the constraint picker at a mirror of the eqcaps database. See [EQUALIZER documentation](/modernGraphTool/docs/guide-for-admins/customize-page/#equalizer).
+* Feat: Added `variants[].description`, a plain-text note shown under the variant’s suffix in the variant picker. Long suffixes now wrap there instead of being cut off. See [Sample Sets](/modernGraphTool/docs/guide-for-admins/manage-data/#sample-sets).
+* Fix: Two sample sets drawn from the same first file no longer overwrite each other when `variants[]` is merged with the phone-level `file` form.
 
 ### v2.2.3
 
