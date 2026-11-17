@@ -41,6 +41,8 @@ In the filter list, click to add a filter. Each filter has:
 - **Gain** — positive values boost, negative values cut (in dB).
 - **Q** — how wide or narrow the effect is. Higher Q = narrower.
 
+The buttons above the list add a band, remove the last one, sort the bands by frequency, and delete all of them at once. Deleting all bands asks first, and removes the left- and right-only bands along with the shared ones; undo brings them back.
+
 As you adjust, the graph updates live — you'll see a new curve appear showing the device-plus-EQ combination, so you can compare the corrected curve against your target in real time. Preamp gain is calculated automatically to prevent digital clipping when you add lots of boosts.
 
 The minimum viable workflow is:
@@ -120,6 +122,10 @@ The player also shows up in your system's media controls — Control Center and 
 iOS, the media notification on Android, and the media overlay and media keys on desktop — so you
 can pause or resume it from there, or with your headphones' play/pause button. On iPhone and iPad
 it also plays with the silent switch on.
+
+When a [Hardware EQ](../features/device-peq.mdx) device is connected in this browser, the player leaves the EQ to it: the device already applies the list to whatever it plays, and applying it here too would play it twice. The player's **EQ Effect** switch turns off, and a line under the switches names the device. **Apply it here instead** takes the EQ back for the player, for when your sound doesn't go through that device. If the device doesn't hold your latest edits yet, the line says so, and what you hear is what the device holds. Holding <kbd>\\</kbd> can't lift the device's EQ, so while the player plays it only shows a message; use **Device EQ** to hear the sound without it.
+
+A device linked through [uniPEQ](../features/unipeq-link.mdx) is treated the same way when you started uniPEQ with **Open uniPEQ**, since it then runs on this machine. Joined by QR code or typed code, it may be on another machine, so the player keeps applying the EQ and asks whether you're listening through it. Choose **Leave the EQ to the device** if you are. The answer is remembered for that device until you reload the page.
 
 ## Hardware EQ — push EQ to a device \{#device-peq\}
 
