@@ -21,7 +21,7 @@ code they cover as `*.spec.ts`.
 | `npm run test`          | Full suite — both the `client` and `server` projects     |
 | `npm run test:unit`     | Same suite in watch mode                                 |
 | `npm run test:coverage` | Full suite + v8 coverage report into `coverage/`         |
-| `npm run test:smoke`    | Boots the built `dist/` in a browser (run `build` first) |
+| `npm run test:smoke`    | Boots the built `dist/` in three engines (`build` first)  |
 
 ## The two projects
 
@@ -39,6 +39,19 @@ and boot-test traps in `src/lib/components/`, d3/rAF traps in `src/lib/graph/`, 
 mocking pattern in `src/lib/device-peq/`. They are kept there rather than here so they stay accurate as
 the code moves.
 :::
+
+## Property-based tests
+
+Code that reads text anyone can send (a share link, a `phone_book.json` description) also has
+properties checked on generated input, with [fast-check](https://fast-check.dev). They live in
+`*.property.spec.ts` files, such as `src/lib/utils/untrusted-input.property.spec.ts`: a decoder
+never throws, a query decodes back to the names it was built from, and sanitizing twice changes
+nothing.
+
+The input is random, so a failure prints a `seed` and a shrunk counterexample. Reproduce it by
+passing that seed as `fc.assert(property, { seed })`, and treat it as a real bug until you have
+shown that the property is wrong. When you add a property, break the code it guards on purpose
+and confirm that it fails.
 
 ## Coverage
 
@@ -74,28 +87,64 @@ regression, or a worker that fails to resolve once bundled will all ship a blank
 suite green.
 
 `scripts/smoke-dist.js` serves `dist/` over real HTTP — including the SPA fallback that `.htaccess`
-provides — boots it in Playwright chromium, and fails on a console error, an uncaught exception, a
-4xx, a graph that never draws, or a `?share=` link that lands no curve.
+provides — boots it in Chromium, WebKit and Firefox through Playwright, and fails on a console
+error, an uncaught exception, a 4xx, a graph that never draws, or a `?share=` link that lands no
+curve. It sends the recommended security headers with Trusted Types on, and checks that each engine
+enforces them. It also runs AutoEQ, which fails if the worker never answers or the wasm engine fell
+back, and opens the tooltip of a disabled button.
 
-Two things to keep in mind when extending it:
+It is the only test that leaves Chromium: the component specs run in Chromium alone. Install the
+other two engines once with `npx playwright install webkit firefox`, or run a single engine with
+`npm run test:smoke -- --browser firefox`.
 
+:::note[WebKit is not Safari]
+Playwright's WebKit is close to desktop Safari, not identical, and shows no iOS-only behavior. A
+pass there does not replace a check on a real iPhone. WebHID and Web Bluetooth exist only in
+Chromium, so the Hardware EQ paths are single-engine whatever the test says.
+:::
+
+Three things to keep in mind when extending it:
+
+- **A check that cannot apply to an engine is skipped for that engine, with the reason written next
+  to the skip.** None is skipped today.
 - **A 200 does not prove a file exists.** The SPA fallback answers anything not on disk with
   `index.html`, on the real Apache host as much as here, so asset checks compare the body against the
   HTML shell rather than trusting the status.
-- It runs in the `build` CI job, after `npm run build`, because it needs the built output.
+- It runs in its own `smoke` CI job, which builds the app first because the test needs the built
+  output. The job runs in Playwright's Docker image, which ships the three engines. CI reads the
+  image tag from the `playwright` version in `package-lock.json`, so a dependency update moves the
+  image with it.
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on every PR and every push to `main`: `lint` → `check` → `test` on
-**both ubuntu-latest and windows-latest**, plus a build of the app, the CDN distribution and the docs
-site on Linux.
+ubuntu-latest, plus a build of the app, the smoke test in three browser engines, the CDN
+distribution and the docs site. CI tests across browser engines, not operating systems.
 
-The Windows leg is not redundant. Git for Windows sets `core.autocrlf=true` in its system config, so
+A Windows leg remains for line endings only: it installs, lints and checks the tree, and runs no
+typecheck and no tests. Git for Windows sets `core.autocrlf=true` in its system config, so
 before `.gitattributes` pinned every text file to `eol=lf`, the same commit was Prettier-clean on
-macOS and dirty on Windows. The **Working tree must be clean** step guards against that regressing:
-it fails if a checkout plus install leaves anything modified, or if CRLF ever reaches the index.
+macOS and dirty on Windows. The lint step and the **Working tree must be clean** step guard against
+that regressing: the second fails if a checkout plus install leaves anything modified, or if CRLF
+ever reaches the index or the working tree.
 
-`npm run lint` must exit 0. ESLint _warnings_ do not fail the build. Rule overrides live in `eslint.config.js` and each carries a
+`npm run lint` must exit 0, and an ESLint _warning_ fails it like an error (`--max-warnings 0`). Rule overrides live in `eslint.config.js` and each carries a
 comment explaining why — notably `no-useless-assignment` is off for `*.svelte` because it misreads
 `$bindable()` prop defaults, and `no-explicit-any` is off under `docs/` because the config migration
 tool parses arbitrary operator-authored config.
+
+In `src/`, two type-aware rules hold app code to its types. `no-unnecessary-condition` fails a guard
+the types say can never fire, so a value from outside them (operator config, fetched JSON, storage,
+a DOM read, an index that can miss) is typed `| undefined` where it enters, and its guard stays.
+`no-non-null-assertion` fails a `!`: narrow instead, or throw where absence is a bug. Specs and test
+fixtures may still use `!`.
+
+App code outside the specs is also held to typescript-eslint's `strict-type-checked` and
+`stylistic-type-checked` presets, and to a `complexity` limit of 15 per function. Nothing is
+suppressed in bulk: never run `eslint --suppress-all` to make a red lint pass. A function over the
+limit is split, with its spec as the pin.
+
+Two helpers in `src/lib/utils/` exist for these presets. `track(a, b)` names the reactive values an
+`$effect` depends on without otherwise using (a bare `void a;` fails `no-meaningless-void-operator`).
+`noop` fills a callback slot that needs no action, such as `.catch(noop)` on a rejection that is safe
+to ignore (an empty arrow function fails `no-empty-function`).

@@ -1549,7 +1549,7 @@ The UI chrome — backgrounds, text, buttons, accents — is driven by a DaisyUI
 
 Each `--color-*` role has a matching `--color-*-content` variable that sets the foreground (text/icon) color rendered on top of it, so contrast is preserved automatically when you change the base.
 
-The shipped defaults keep every role against its `-content` at 4.5:1 or better (WCAG AA), bright enough to stay colorful, and `base-content` at 80% opacity at 7:1 or better on the base surfaces. If you change a color, check the pair again. `warning` is the one role whose light-mode value is too light to read as text on a light surface; it carries a dark `-content` instead. A `@media (prefers-contrast: more)` block at the end of the shipped `theme.css` pushes `base-content` to pure black or white, strengthens the graph lines and darkens the light theme’s roles to 7:1 (WCAG AAA) for visitors who ask their OS for more contrast; keep it if you want that behavior, and put your own darker values there if you change the roles.
+The shipped defaults keep every role against its `-content` at 4.5:1 or better (WCAG AA), bright enough to stay colorful, and `base-content` at 80% opacity at 7:1 or better on the base surfaces. If you change a color, check the pair again. `warning` is the one role whose light-mode value is too light to read as text on a light surface; it carries a dark `-content` instead. A `@media (prefers-contrast: more)` block at the end of the shipped `theme.css` pushes `base-content` to pure black or white, strengthens the graph lines and darkens the light theme’s roles to 7:1 (WCAG AAA) for visitors who ask their OS for more contrast; keep it if you want that behavior, and put your own darker values there if you change the roles. A theme exported from the [Theme Generator](/modernGraphTool/docs/theme-generator/) has that block filled in from the colors you picked, and the generator marks a role that falls below 4.5:1.
 
 Color format
 
@@ -3986,6 +3986,10 @@ npm run format     # fix
 
 CI runs `npm run lint` on Linux and Windows, so a PR that is not Prettier-clean will not merge.
 
+App code under `src/` is linted with typescript-eslint’s strict type-checked presets, and a warning fails lint like an error. There is no suppressions file: fix a finding rather than recording it with `eslint --suppress-all`. The [testing guide](/modernGraphTool/docs/guide-for-developers/testing/) explains the rules that most often need a change in how you write code.
+
+Some rules are specific to this project: no import from `static/` or `defaults/`, no Tailwind palette class such as `bg-zinc-800`, no `innerHTML`, and no import that crosses a layer (a store cannot import a service, for example). Each one’s error message says what to write instead. They live in `eslint.config.js`, and a new project rule that a machine can check belongs there too.
+
 ### Line endings
 
 Every text file is **LF**, pinned by `.gitattributes`. That overrides `core.autocrlf`, which the Git for Windows installer turns on by default, so there is nothing to configure locally. Just don’t commit CRLF. `.editorconfig` tells your editor the same thing; install the EditorConfig extension if your editor doesn’t read it natively.
@@ -4098,7 +4102,16 @@ There are two ways in, and both end as an ordinary pull request.
 
 Before merging one, run `npm run i18n:tidy -- --base origin/main` on the PR branch and push the result; fork PRs accept maintainer pushes by default. Fink adds a message to the end of the file whenever the contributor’s copy lacks it, and a fork that is behind `main` lacks every key added since. A Russian translation can therefore arrive carrying English and Korean keys that `main` already has elsewhere in the file. Git merges both copies without a conflict, and `JSON.parse` silently keeps one of them. The tidy moves each key back to where `main` has it, so the merge collapses the two into one.
 
-You don’t need a local checkout for this. Comment `/tidy` on the PR, or run the **i18n tidy** workflow from the Actions tab with the PR number. It runs the same tidy against `main` and pushes the result to the PR branch as a commit, then replies with what changed. Only the repository owner, members and collaborators can trigger it, and the PR must allow edits by maintainers. It runs nothing from the PR itself: `main`’s script tidies a copy of the PR’s translation files. Like every comment-triggered workflow, it runs from the copy of the workflow file on `main`.
+You rarely need to do this by hand. The **i18n tidy** workflow runs on every PR that changes a `messages/*.json` file, and again on each push to it. It runs the same tidy against `main` and pushes the result to the PR branch as a commit, then comments with what changed. When there is nothing to tidy it says nothing. When it cannot finish, the check fails and one comment on the PR, kept up to date across pushes, says why:
+
+* A key appears twice with different values. Someone has to pick one; the comment lists each key and its lines.
+* The PR doesn’t allow edits by maintainers, so the tidy can’t be pushed. The contributor ticks the box, or runs the tidy on their branch.
+
+To run it again yourself, comment `/tidy` on the PR (repository owner, members and collaborators only), or start the workflow from the Actions tab with the PR number. Since the tidy commit lands on the PR branch, pull before you add commits to a branch of your own.
+
+When a PR edits the staging files instead of `messages/<locale>.json` (the offline flow below), comment `/apply` once the translation is finished, or tick **apply** when starting the workflow by hand. It runs `i18n:apply` on the staging files the PR changed, tidies the result and pushes one commit, so the PR shows the real change to the locale files and CI checks it before the merge. Those staging files are written again with what is still untranslated; other languages’ staging files are left alone. It is never automatic, because it rewrites the file the contributor is still editing. If an entry can’t be applied (a plural key that isn’t a plural form, an input `en.json` doesn’t pass), nothing is pushed and the comment names each one: the rewrite would otherwise replace the translator’s text with the English source.
+
+It runs nothing from the PR itself: `main`’s script tidies a copy of the PR’s translation files, and the workflow file is always the copy on `main`, so a change to it takes effect only once merged.
 
 The workflow pushes with an `I18N_TIDY_TOKEN` repository secret: a classic personal access token with the `public_repo` scope, from an account with write access. `GITHUB_TOKEN` cannot push to a fork, and a fine-grained token cannot reach a repository its owner doesn’t own, which a contributor’s fork is not.
 
@@ -4141,7 +4154,7 @@ A count needs more than `{count} band(s)`: `en` splits 1 band from 2 bands, and 
 * **Whole-sentence object** — one key per plural form. It counts `{count}`; add `"plural": "total"` to count another input.
 * **Inline fragment** — ICU syntax inside the string, with `#` standing for the number. Use it when only a word or two changes, or when a message has two counters: the script writes out every combination, so the translator doesn’t have to.
 
-The forms are the locale’s [CLDR plural categories](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html) (`zero`, `one`, `two`, `few`, `many`, `other`). `other` is required. Each staging file’s `@@info` lists the forms that locale uses, and `i18n:apply` drops any form the locale never selects, with a warning. An exact number such as `"=0": "No bands"` takes precedence over the categories, but needs Paraglide 2.27.0 or later. Below that, `i18n:apply` skips the key.
+The forms are the locale’s [CLDR plural categories](https://www.unicode.org/cldr/charts/latest/supplemental/language_plural_rules.html) (`zero`, `one`, `two`, `few`, `many`, `other`). `other` is required; in the object form `*`, Paraglide’s own spelling of it, is read as `other`. Each staging file’s `@@info` lists the forms that locale uses, and `i18n:apply` drops any form the locale never selects, with a warning. An exact number such as `"=0": "No bands"` takes precedence over the categories, but needs Paraglide 2.27.0 or later. Below that, `i18n:apply` skips the key.
 
 A plural already in `en.json` appears in the staging file as the object form. Anything the short forms can’t express, such as ordinals or gender, can be written in Paraglide’s full array form, which passes through unchanged. The parsing lives in [scripts/i18n-plural.js](https://github.com/potatosalad775/modernGraphTool/blob/main/scripts/i18n-plural.js).
 
@@ -4240,7 +4253,7 @@ modernGraphTool uses **Vitest** with **Playwright browser mode**. Specs are co-l
 | `npm run test`          | Full suite — both the `client` and `server` projects     |
 | `npm run test:unit`     | Same suite in watch mode                                 |
 | `npm run test:coverage` | Full suite + v8 coverage report into `coverage/`         |
-| `npm run test:smoke`    | Boots the built `dist/` in a browser (run `build` first) |
+| `npm run test:smoke`    | Boots the built `dist/` in three engines (`build` first) |
 
 ## The two projects
 
@@ -4254,6 +4267,12 @@ Most specs drive stores and services directly. Component specs mount with `rende
 Where the gotchas are documented
 
 Layer-specific testing traps live next to the code, in per-directory `AGENTS.md` files — component and boot-test traps in `src/lib/components/`, d3/rAF traps in `src/lib/graph/`, and the connect-flow mocking pattern in `src/lib/device-peq/`. They are kept there rather than here so they stay accurate as the code moves.
+
+## Property-based tests
+
+Code that reads text anyone can send (a share link, a `phone_book.json` description) also has properties checked on generated input, with [fast-check](https://fast-check.dev). They live in `*.property.spec.ts` files, such as `src/lib/utils/untrusted-input.property.spec.ts`: a decoder never throws, a query decodes back to the names it was built from, and sanitizing twice changes nothing.
+
+The input is random, so a failure prints a `seed` and a shrunk counterexample. Reproduce it by passing that seed as `fc.assert(property, { seed })`, and treat it as a real bug until you have shown that the property is wrong. When you add a property, break the code it guards on purpose and confirm that it fails.
 
 ## Coverage
 
@@ -4274,20 +4293,33 @@ npm run build && npm run test:smoke
 
 The unit suite mounts components against source, so nothing in it ever loads what the build emits. An adapter-static misconfiguration, a `defaults/` file the Vite plugin stopped copying, an asset-URL regression, or a worker that fails to resolve once bundled will all ship a blank page with the whole suite green.
 
-`scripts/smoke-dist.js` serves `dist/` over real HTTP — including the SPA fallback that `.htaccess` provides — boots it in Playwright chromium, and fails on a console error, an uncaught exception, a 4xx, a graph that never draws, or a `?share=` link that lands no curve.
+`scripts/smoke-dist.js` serves `dist/` over real HTTP — including the SPA fallback that `.htaccess` provides — boots it in Chromium, WebKit and Firefox through Playwright, and fails on a console error, an uncaught exception, a 4xx, a graph that never draws, or a `?share=` link that lands no curve. It sends the recommended security headers with Trusted Types on, and checks that each engine enforces them. It also runs AutoEQ, which fails if the worker never answers or the wasm engine fell back, and opens the tooltip of a disabled button.
 
-Two things to keep in mind when extending it:
+It is the only test that leaves Chromium: the component specs run in Chromium alone. Install the other two engines once with `npx playwright install webkit firefox`, or run a single engine with `npm run test:smoke -- --browser firefox`.
 
+WebKit is not Safari
+
+Playwright’s WebKit is close to desktop Safari, not identical, and shows no iOS-only behavior. A pass there does not replace a check on a real iPhone. WebHID and Web Bluetooth exist only in Chromium, so the Hardware EQ paths are single-engine whatever the test says.
+
+Three things to keep in mind when extending it:
+
+* **A check that cannot apply to an engine is skipped for that engine, with the reason written next to the skip.** None is skipped today.
 * **A 200 does not prove a file exists.** The SPA fallback answers anything not on disk with `index.html`, on the real Apache host as much as here, so asset checks compare the body against the HTML shell rather than trusting the status.
-* It runs in the `build` CI job, after `npm run build`, because it needs the built output.
+* It runs in its own `smoke` CI job, which builds the app first because the test needs the built output. The job runs in Playwright’s Docker image, which ships the three engines. CI reads the image tag from the `playwright` version in `package-lock.json`, so a dependency update moves the image with it.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every PR and every push to `main`: `lint` → `check` → `test` on **both ubuntu-latest and windows-latest**, plus a build of the app, the CDN distribution and the docs site on Linux.
+`.github/workflows/ci.yml` runs on every PR and every push to `main`: `lint` → `check` → `test` on ubuntu-latest, plus a build of the app, the smoke test in three browser engines, the CDN distribution and the docs site. CI tests across browser engines, not operating systems.
 
-The Windows leg is not redundant. Git for Windows sets `core.autocrlf=true` in its system config, so before `.gitattributes` pinned every text file to `eol=lf`, the same commit was Prettier-clean on macOS and dirty on Windows. The **Working tree must be clean** step guards against that regressing: it fails if a checkout plus install leaves anything modified, or if CRLF ever reaches the index.
+A Windows leg remains for line endings only: it installs, lints and checks the tree, and runs no typecheck and no tests. Git for Windows sets `core.autocrlf=true` in its system config, so before `.gitattributes` pinned every text file to `eol=lf`, the same commit was Prettier-clean on macOS and dirty on Windows. The lint step and the **Working tree must be clean** step guard against that regressing: the second fails if a checkout plus install leaves anything modified, or if CRLF ever reaches the index or the working tree.
 
-`npm run lint` must exit 0. ESLint *warnings* do not fail the build. Rule overrides live in `eslint.config.js` and each carries a comment explaining why — notably `no-useless-assignment` is off for `*.svelte` because it misreads `$bindable()` prop defaults, and `no-explicit-any` is off under `docs/` because the config migration tool parses arbitrary operator-authored config.
+`npm run lint` must exit 0, and an ESLint *warning* fails it like an error (`--max-warnings 0`). Rule overrides live in `eslint.config.js` and each carries a comment explaining why — notably `no-useless-assignment` is off for `*.svelte` because it misreads `$bindable()` prop defaults, and `no-explicit-any` is off under `docs/` because the config migration tool parses arbitrary operator-authored config.
+
+In `src/`, two type-aware rules hold app code to its types. `no-unnecessary-condition` fails a guard the types say can never fire, so a value from outside them (operator config, fetched JSON, storage, a DOM read, an index that can miss) is typed `| undefined` where it enters, and its guard stays. `no-non-null-assertion` fails a `!`: narrow instead, or throw where absence is a bug. Specs and test fixtures may still use `!`.
+
+App code outside the specs is also held to typescript-eslint’s `strict-type-checked` and `stylistic-type-checked` presets, and to a `complexity` limit of 15 per function. Nothing is suppressed in bulk: never run `eslint --suppress-all` to make a red lint pass. A function over the limit is split, with its spec as the pin.
+
+Two helpers in `src/lib/utils/` exist for these presets. `track(a, b)` names the reactive values an `$effect` depends on without otherwise using (a bare `void a;` fails `no-meaningless-void-operator`). `noop` fills a callback slot that needs no action, such as `.catch(noop)` on a rejection that is safe to ignore (an empty arrow function fails `no-empty-function`).
 
 # Translating
 
@@ -5667,6 +5699,37 @@ Full explanation and worked examples: [Why `BASE_PATH` is almost always required
 Everything that isn’t the app bundle itself (data, config, theme, Preference Bound files) is identical between the two options. You can switch back and forth by swapping your `index.html` file and optionally adding or removing the `CDN_MODE` section from `config.js`. There’s no lock-in.
 
 # modernGraphTool v2 Changelog
+
+### v2.3.5
+
+* Feat: Added a **Delete all bands** button above the Equalizer’s filter list. It asks first, also removes the left- and right-only bands, and can be undone. (#117)
+* Feat: Added a **Single-key shortcuts** setting in the Misc panel. Switch it off if the `1`–`4` panel keys or the `\` hold get in the way of typing or voice control. These keys are now also skipped while a dropdown has focus. See [Keyboard and focus](/modernGraphTool/docs/guide-for-users/interface-tour/#keyboard-and-focus).
+* Feat: Keyboard and screen reader support was reworked across the tool. There are skip links to the controls and the graph, the divider between the graph and the panel moves with the arrow keys, each curve’s buttons are announced with the curve’s name, and the site selector has a filter field and arrow-key navigation. Animations follow the reduced-motion setting, and the page declares the selected language to screen readers and browser translation.
+* Feat: With `PREFERRED_DARK_MODE_THEME: "system"`, the theme now keeps following the device’s light or dark setting until a visitor picks one. Dark mode is applied before the page first paints, so a dark page no longer flashes light while loading.
+* Feat: The default `theme.css` has a higher-contrast palette. Every color role keeps 4.5:1 against its `-content`, secondary text keeps 7:1, and a `prefers-contrast: more` block raises the light theme’s colors to 7:1. Two tokens are new: `--color-scrim` (the veil behind dialogs, the mobile menu and the tour) and `--color-rating` (rank stars). An existing `theme.css` keeps its own colors and works without the new tokens. See [Customizing Page Styles](/modernGraphTool/docs/guide-for-admins/customize-page/#customizing-page-styles-themecss).
+* Feat: The [Theme Generator](/modernGraphTool/docs/theme-generator/) exports the new tokens and fills the `prefers-contrast: more` block with 7:1 versions of your colors. It shows each color’s contrast as you pick it, previews the increased-contrast palette, and **Random All** only rolls colors that keep 4.5:1.
+* Feat: Added `TOPBAR.TITLE.ALT`, the site’s name as plain text, for screen readers when the title is an image or HTML. The sample `config.js` title is now a `<span>`: don’t use heading tags (`<h1>`–`<h6>`) in an HTML title. See [TOPBAR documentation](/modernGraphTool/docs/guide-for-admins/customize-page/#topbar).
+* Feat: A CDN deployment can now be pinned to one exact release with `CDN_MODE.VERSION`. With `BOOT_INTEGRITY` as well, it only starts from files whose hashes are written in your own `index.html` and `config.js`. Unpinned sites now also check each script and stylesheet of a release against its hash. See [Pinning a release](/modernGraphTool/docs/guide-for-admins/deployment/cdn/#pinning-a-release).
+* Feat: Every release now ships recommended security headers, a Content-Security-Policy among them, switched off: as commented lines in `.htaccess`, and as a commented `<meta>` tag in the `index.html` of the CDN release and the GitHub Pages template. Trusted Types can be added on top. See [Security Headers](/modernGraphTool/docs/guide-for-admins/deployment/security-headers/).
+* Feat: The bundled `.htaccess` now sets cache lifetimes and compression on Apache. See [Caching and compression](/modernGraphTool/docs/guide-for-admins/deployment/prebuilt/#caching-and-compression).
+* Feat: Hardware EQ now checks a network device’s address before connecting (an IP address or a `.local` name, with an optional port), connects on Enter, and tells you when the browser can’t reach the device. See [Network devices](/modernGraphTool/docs/features/device-peq/#network-devices).
+* Feat (squig-link): Analytics now reports to squig.link’s shared Tag Manager container with no ID needed, and `ANALYTICS_MEASUREMENT_IDS` also accepts `GTM-` containers of your own. Visitors get a **Usage statistics** switch in the Misc panel, a browser that sends Global Privacy Control loads no analytics, and the new `ANALYTICS_CONSENT` sets what Consent Mode starts from. See [Analytics and consent](/modernGraphTool/docs/features/squiglink-integration/#analytics-and-consent).
+* Fix (squig-link): Fixed an issue where analytics events aren’t properly sent to Google Tag Manager.
+* Fix (squig-link): Fixed an issue where shop link’s sale price weren’t properly shown in certain conditions.
+* Fix: An uploaded measurement used as the EQ source is now dimmed while you equalize, like any other source. (#115)
+* Fix: A new EQ curve now starts at its source’s Y-offset, and the band handles on the graph stay on the curve when it has an offset. (#116)
+* Fix: Changing the language now keeps the selected devices, targets and EQ, also with `URL.AUTO_UPDATE_URL` off. (#119)
+* Fix: Holding a Y-offset button now makes one undo step instead of one per tick.
+* Fix: A damaged share link no longer stops the page from loading. The parts that can’t be read are skipped.
+* Fix: `reviewLink`, `shopLink` and `links[]` URLs in `phone_book.json` now keep query parameters such as `&tab=` and `&lt=`. A `reviewLink` or `shopLink` that isn’t an `http(s)` address is ignored.
+* Fix: Cross-site search no longer fails when the main index stalls but a mirror answers. It skips malformed rows instead of stopping, and a load that fails is reported instead of loading forever.
+* Fix: Databases that were unreachable now carry an **Unverified** badge in the site selector, with a note under the list, instead of being dimmed.
+* Fix: Error notifications now stay until dismissed, and a repeated one shows once. Dialogs and popovers taller than the screen scroll inside instead of being cut off.
+* Fix: When the browser blocks copying, the share button now shows the link so you can copy it yourself.
+* Fix: Uploading now refuses a file over 5 MB, or more than 40 files at once, with a message instead of trying to read them.
+* Fix: The Enter or Escape that finishes typing with an IME (Korean, Japanese, Chinese) no longer also submits or cancels the field.
+* Refactor: A screenshot taken in dark mode now uses the light colors of your `theme.css` instead of built-in ones.
+* Refactor: Faster startup. The Equalizer panel now loads on demand, and the hover readout, Y-axis drag and cross-site search do less work.
 
 ### v2.3.4
 

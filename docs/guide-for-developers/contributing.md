@@ -53,6 +53,17 @@ npm run format     # fix
 
 CI runs `npm run lint` on Linux and Windows, so a PR that is not Prettier-clean will not merge.
 
+App code under `src/` is linted with typescript-eslint's strict type-checked presets, and a warning
+fails lint like an error. There is no suppressions file: fix a finding rather than recording it
+with `eslint --suppress-all`. The
+[testing guide](./testing.mdx) explains the rules that most often need a change
+in how you write code.
+
+Some rules are specific to this project: no import from `static/` or `defaults/`, no Tailwind
+palette class such as `bg-zinc-800`, no `innerHTML`, and no import that crosses a layer (a store
+cannot import a service, for example). Each one's error message says what to write instead. They
+live in `eslint.config.js`, and a new project rule that a machine can check belongs there too.
+
 ### Line endings
 
 Every text file is **LF**, pinned by `.gitattributes`. That overrides `core.autocrlf`, which the Git

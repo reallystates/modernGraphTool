@@ -51,6 +51,17 @@ npm run format     # 수정
 CI가 Linux와 Windows에서 `npm run lint`를 실행하므로, Prettier 기준에 맞지 않는 PR은 병합되지
 않습니다.
 
+`src/` 아래의 앱 코드는 typescript-eslint의 strict type-checked 프리셋으로 검사하며, 경고도
+오류처럼 lint를 실패시킵니다. 억제 파일은 없습니다. 위반은 `eslint --suppress-all`로 기록하지 말고
+고치세요. 코드 작성 방식에 가장 자주
+영향을 주는 규칙은 [테스트 가이드](./testing.mdx)에 설명되어 있습니다.
+
+이 프로젝트에만 있는 규칙도 있습니다. `static/`이나 `defaults/`에서 import하지 않기, `bg-zinc-800`
+같은 Tailwind 팔레트 클래스 쓰지 않기, `innerHTML` 쓰지 않기, 계층을 거스르는 import 하지 않기(예:
+스토어는 서비스를 import할 수 없음) 등입니다. 각 규칙의 오류 메시지가 대신 무엇을 써야 하는지
+알려 줍니다. 이 규칙들은 `eslint.config.js`에 있으며, 기계가 검사할 수 있는 새 프로젝트 규칙도
+거기에 추가합니다.
+
 ### 줄바꿈 \{#line-endings\}
 
 모든 텍스트 파일은 `.gitattributes`로 **LF**에 고정되어 있습니다. Git for Windows 설치 프로그램이
