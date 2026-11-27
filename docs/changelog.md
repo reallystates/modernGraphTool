@@ -12,6 +12,31 @@ pagefind: true
 draft: false
 ---
 
+### v2.3.8
+- Fix: AutoEQ's **Gain Range** now limits each band on its own, as in CrinGraph. Before, its maximum also capped the boost of the whole EQ. In **Exact match**, bands can now stack past the range where a curve falls far below the target, usually a treble that rolls off, so some fits boost more and get a lower preamp. **Treble-safe** aims for at most 6 dB of boost across the whole EQ, AutoEq's own limit, whatever the range says. Graphic EQ presets follow the same rules. If a fit gets too quiet, lower the range's maximum or switch to Treble-safe. See [Fit mode](./features/equalizer.mdx#fit-mode).
+- Fix: Hardware EQ now also warns that a device may clip when its preamp can't go as low as the bands' boost needs. Before, it warned only for devices that take no preamp at all.
+
+### v2.3.7
+- Feat: Hardware EQ now shows a device's own settings next to **Device EQ**: headroom, crossfeed, DAC filter, output gain, USB mode and more, depending on the device. A setting applies as soon as you change it. If a setting restarts the device, the panel asks first and reconnects afterwards. See [Device settings](./features/device-peq.mdx#device-settings).
+- Feat: A device with more than one EQ, such as the Qudelix 5K with its user EQ and headphone EQ ("SPK EQ"), gets an **EQ** row. It picks the EQ that **Device EQ**, **Read**, **Write**, auto-write and the band list's limits use. See [Devices with more than one EQ](./features/device-peq.mdx#devices-with-more-than-one-eq).
+- Feat: On a device that keeps its presets as a list, such as the Topping DX5 II and DX9 Discrete, **Device EQ** lists the presets under their names on the device. **New**, **Rename** and **Delete** buttons add to that list and change it. See [Adding, renaming and deleting presets](./features/device-peq.mdx#adding-renaming-and-deleting-presets).
+- Feat: A device with a separate set of bands for each ear, such as the Qudelix headphone EQ and the Topping DX5 II, now gets the full per-channel EQ. **Write** sends each ear the L+R bands plus that ear's own bands, **Read** brings back both ears, and the **Channel** switch stays available. Other devices still get the L+R bands only. See [Left and right](./features/device-peq.mdx#left-and-right).
+- Feat: The [uniPEQ link](./features/unipeq-link.mdx#while-linked) now carries all of the above for a device connected in uniPEQ: left- and right-only bands, the device's preset list, its settings and its EQs. This needs a recent uniPEQ. With an older one, the link works as before.
+- Feat: When a phone's `variants[]` names every measurement in its `file` (and `hptfs`), the variant picker now follows the order of `variants[]`, and its first entry is the default curve. A `variants[]` that names only some of them keeps the old order. The browser console warns about a phone that has `variants` but no `file`, and about a phone whose first variant isn't the first entry of `file`, because squig.link and CrinGraph would open a different one. See [Sample Sets](./guide-for-admins/manage-data.mdx#sample-sets).
+- Fix: The [phone_book.json Editor](/phone-book-editor) now exports the phone-level `file` and `suffix` alongside `variants[]`, and no longer warns on import that it would drop them. A phone without `file` was missing from squig.link's cross-site search, along with every phone after it in the same file, and CrinGraph couldn't read it. If the Editor converted your `phone_book.json` before, export it again.
+- Fix: Some devices report that their EQ has changed since a preset was loaded. A Qudelix does this after any edit, including one made in its own app. These devices now show **Unsaved EQ** under **Device EQ**, and **Read** and **Write** use the EQ the device is playing. Before, the panel showed the first preset instead, **Read** was unavailable, and **Write** saved over that preset. See [Device EQ](./features/device-peq.mdx#device-eq).
+- Fix: Hardware EQ's controls now keep keyboard focus while the device is busy, instead of losing it. A setting slider released during a write is applied once the device is free.
+- Fix: Over the uniPEQ link, pressing a button again while uniPEQ is still busy no longer causes an error notification. The status line no longer shows an old error or setting message after uniPEQ writes.
+- Fix: Over the uniPEQ link, the Equalizer no longer says the preamp was auto-reduced when uniPEQ's fixed preamp is in use. Instead, it warns for each channel when that preamp leaves less headroom than the bands' boost.
+- Fix: A band's gain now shows at most two decimals and its Q at most three, so a Q read from a device shows as `0.707` instead of `0.70703125`.
+- Fix: The tone generator now glides between slider positions instead of stepping. Below 150 Hz it moves in 0.1 Hz steps, so every slider position changes the pitch. A move of more than an octave still jumps.
+
+### v2.3.6
+- Feat: The runs of a sample set are now drawn in graded shades of the curve's color, the first run darkest, instead of all in one color. Recoloring the curve recolors its runs too. They stay faint behind the average, and are drawn solid once the average is hidden. See [Sample selector](./guide-for-users/working-with-curves.mdx#sample-selector-for-devices-measured-more-than-once). (#134)
+- Feat: Hardware EQ is updated to eqcaps 0.6, which adds support for Topping devices and more.
+- Refactor: AutoEQ is updated to turboEQ 0.3.1, which is up to twice as fast and fixes a rare error that occurred during exact-match peaking-only runs.
+- Fix: A fractional `reviewScore` such as `4.3` now fills exactly that much of the five-star row. Before, it was rounded down to the nearest half star, and the half star was an emoji drawn in its own size and color. (#135)
+
 ### v2.3.5
 - Feat: Added a **Delete all bands** button above the Equalizer's filter list. It asks first, also removes the left- and right-only bands, and can be undone. (#117)
 - Feat: Added a **Single-key shortcuts** setting in the Misc panel. Switch it off if the <kbd>1</kbd>–<kbd>4</kbd> panel keys or the <kbd>\\</kbd> hold get in the way of typing or voice control. These keys are now also skipped while a dropdown has focus. See [Keyboard and focus](./guide-for-users/interface-tour.mdx#keyboard-and-focus).

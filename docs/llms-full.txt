@@ -563,15 +563,16 @@ Every feature is built in — there is nothing to install. These pages explain w
 
 > How turboEQ compares with the CrinGraph optimizer, the older TypeScript one and upstream AutoEq, under the same constraints and on real measurements.
 
-modernGraphTool’s AutoEQ runs [turboEQ](https://github.com/potatosalad775/turboEQ), a WebAssembly port of [AutoEq](https://github.com/jaakkopasanen/AutoEq)’s optimizer. This page compares it, as an algorithm, with the optimizers it replaces and with the one it was ported from. Every engine fits the same 176 real IEM measurements under the same constraints.
+modernGraphTool’s AutoEQ runs [turboEQ](https://github.com/potatosalad775/turboEQ), a WebAssembly port of [AutoEq](https://github.com/jaakkopasanen/AutoEq)’s optimizer. This page compares it, as an algorithm, with the optimizers it replaces and with the one it was ported from. Every engine fits the same 178 real IEM measurements under the same constraints.
 
 ## Summary
 
-* **It is two orders of magnitude faster.** With eight bands, turboEQ’s median run is 6.2 ms. CrinGraph’s optimizer takes 807 ms and modernGraphTool’s old TypeScript one 1.41 s.
+* **It is two orders of magnitude faster.** With eight bands, turboEQ’s median run is 4.6 ms. CrinGraph’s optimizer takes 1.30 s and modernGraphTool’s old TypeScript one 2.14 s.
 * **It returns the number of bands you ask for, every time.** Asked for eight, CrinGraph returned eight for 87% of the measurements and the old optimizer for 22%.
-* **Exact match fits closest from eight bands up.** At ten bands, its median error across 20 Hz–20 kHz is 0.48 dB, against 0.74 for the old optimizer and 1.24 for CrinGraph. At eight it leads by less (0.77 against 0.82), and its bad cases are less bad (1.59 against 1.90 at the 90th percentile). On headphones it leads at every band count.
-* **With five bands on IEMs, the old optimizer scores better, mostly on level.** It reaches 1.16 dB against exact match’s 1.27. [Where turboEQ loses](#where-turboeq-loses) explains why.
-* **Treble-safe stays close to AutoEq.** Given the same constraints, its EQ lands 0.17 dB (median) from AutoEq’s when both run to convergence. For comparison, AutoEq’s own early stopping moves AutoEq’s answer by 0.07 dB.
+* **Exact match fits closest from eight bands up.** At ten bands, its median error across 20 Hz–20 kHz is 0.49 dB, against 0.76 for the old optimizer and 1.24 for CrinGraph. At eight it leads by less (0.76 against 0.87), and its bad cases are less bad (1.47 against 2.01 at the 90th percentile). On headphones it leads at every band count.
+* **With five bands on IEMs, the old optimizer scores better, mostly on level.** It reaches 1.17 dB against exact match’s 1.27. [Where turboEQ loses](#where-turboeq-loses) explains why.
+* **Treble-safe stays close to AutoEq.** Given the same constraints, its EQ lands 0.15 dB (median) from AutoEq’s when both run to convergence. For comparison, AutoEq’s own early stopping moves AutoEq’s answer by 0.07 dB.
+* **Exact match needs the most headroom in the worst cases.** Like CrinGraph and the old optimizer, it limits each band and not the whole EQ, so a curve far below the target can take 20 dB of boost or more. Treble-safe, like AutoEq, keeps the whole EQ near 6 dB. See [Boost](#boost).
 
 ## The constraints
 
@@ -582,13 +583,12 @@ Every engine got the same limits on each band:
 | Q                    | 0.1–10        |
 | Gain                 | −20 to +20 dB |
 | Where a band may sit | 20 Hz–20 kHz  |
-| Largest total boost  | 20 dB         |
 
 Some differences between the engines are part of the method and stay:
 
 * **CrinGraph has no shelf filters**, so all of its bands are peaking. The others use a low and a high shelf once there are four bands or more, and place them themselves. turboEQ and AutoEq keep shelf Q between 0.4 and 0.7.
 * **Treble-safe places no band above 10 kHz**, because above that it scores only the overall level, not the shape.
-* **The limit on total boost** only means something to the AutoEq family, which caps the whole EQ. CrinGraph and the TypeScript optimizer limit each band on its own.
+* **Treble-safe and AutoEq also cap the whole EQ’s largest boost** at AutoEq’s own 6 dB, as the panel runs treble-safe. The other engines limit each band on its own and nothing more.
 
 Band counts below are totals, shelves included. Ten bands is the layout of AutoEq’s `8_PEAKING_WITH_SHELVES` preset.
 
@@ -598,46 +598,46 @@ Median time for one fit, in milliseconds. The last column is the 90th percentile
 
 | Engine                | 5 bands | 8 bands | 10 bands | 10 bands, p90 |
 | --------------------- | ------: | ------: | -------: | ------------: |
-| CrinGraph             |     482 |     807 |      993 |         1,080 |
-| mGT TypeScript        |     598 |   1,410 |    2,100 |         2,440 |
-| turboEQ · Exact match |     1.8 |     6.2 |       12 |            24 |
-| turboEQ · Treble-safe |     2.1 |     8.2 |       19 |            39 |
-| AutoEq (Python)       |      30 |      74 |      124 |           180 |
+| CrinGraph             |     764 |   1,300 |    1,620 |         1,830 |
+| mGT TypeScript        |     916 |   2,140 |    2,980 |         3,490 |
+| turboEQ · Exact match |     1.5 |     4.6 |      8.5 |            16 |
+| turboEQ · Treble-safe |     2.5 |      10 |       22 |            51 |
+| AutoEq (Python)       |      46 |     113 |      181 |           271 |
 
-At eight bands, turboEQ is about 130× faster than CrinGraph and 230× faster than the old optimizer. On the same work as AutoEq itself, the curve processing plus the fit, treble-safe is about 9× faster than the Python original.
+At eight bands, turboEQ is about 280× faster than CrinGraph and 470× faster than the old optimizer. On the same work as AutoEq itself, the curve processing plus the fit, treble-safe is about 11× faster than the Python original.
 
 CrinGraph runs on the page’s main thread, so the page freezes for as long as the fit takes. modernGraphTool runs AutoEQ in a web worker, and the TypeScript fallback runs there too.
 
 ## Fit quality
 
-How close the equalized curve lands to the target, as RMS error in dB after removing the overall level offset. Lower is better. Without any EQ, the median error is 3.03 dB across 20 Hz–20 kHz and 2.23 dB below 10 kHz.
+How close the equalized curve lands to the target, as RMS error in dB after removing the overall level offset. Lower is better. Without any EQ, the median error is 3.04 dB across 20 Hz–20 kHz and 2.24 dB below 10 kHz.
 
 **Across 20 Hz–20 kHz**, median with the 90th percentile in parentheses:
 
 | Engine                | 5 bands         | 8 bands         | 10 bands        |
 | --------------------- | --------------- | --------------- | --------------- |
 | CrinGraph             | 2.01 (3.04)     | 1.47 (2.84)     | 1.24 (2.60)     |
-| mGT TypeScript        | **1.16** (2.28) | 0.82 (1.90)     | 0.74 (1.85)     |
-| turboEQ · Exact match | 1.27 (2.26)     | **0.77** (1.59) | **0.48** (1.13) |
-| turboEQ · Treble-safe | 1.72 (2.54)     | 1.63 (2.43)     | 1.63 (2.38)     |
-| AutoEq (Python)       | 1.74 (2.52)     | 1.69 (2.47)     | 1.70 (2.45)     |
+| mGT TypeScript        | **1.17** (2.28) | 0.87 (2.01)     | 0.76 (1.92)     |
+| turboEQ · Exact match | 1.27 (2.32)     | **0.76** (1.47) | **0.49** (1.14) |
+| turboEQ · Treble-safe | 1.74 (2.64)     | 1.65 (2.61)     | 1.65 (2.57)     |
+| AutoEq (Python)       | 1.78 (2.65)     | 1.71 (2.60)     | 1.72 (2.63)     |
 
 **Below 10 kHz**, median. This leaves out the region AutoEq deliberately does not shape:
 
 | Engine                |  5 bands |  8 bands | 10 bands |
 | --------------------- | -------: | -------: | -------: |
-| CrinGraph             |     0.81 | **0.37** | **0.27** |
-| mGT TypeScript        | **0.67** |     0.49 |     0.44 |
-| turboEQ · Exact match |     0.84 |     0.45 | **0.27** |
-| turboEQ · Treble-safe |     0.88 |     0.79 |     0.78 |
-| AutoEq (Python)       |     0.92 |     0.81 |     0.80 |
+| CrinGraph             |     0.82 | **0.37** |     0.27 |
+| mGT TypeScript        | **0.66** |     0.50 |     0.45 |
+| turboEQ · Exact match |     0.83 |     0.43 | **0.24** |
+| turboEQ · Treble-safe |     0.91 |     0.81 |     0.79 |
+| AutoEq (Python)       |     0.93 |     0.83 |     0.82 |
 
 **How often the requested band count came back:**
 
 | Engine                          | 5 bands | 8 bands | 10 bands |
 | ------------------------------- | ------: | ------: | -------: |
-| CrinGraph                       |     94% |     87% |      64% |
-| mGT TypeScript                  |     60% |     22% |       6% |
+| CrinGraph                       |     94% |     87% |      65% |
+| mGT TypeScript                  |     58% |     22% |       5% |
 | turboEQ (both modes) and AutoEq |    100% |    100% |     100% |
 
 CrinGraph’s search stops once it runs out of candidate peaks and dips. The TypeScript optimizer also drops bands it judges ineffective, so its numbers above often come from fewer bands than asked.
@@ -646,11 +646,27 @@ Treble-safe scores worse on purpose. It smooths the treble, scores only the leve
 
 Exact match, like the TypeScript optimizer, will use narrow, deep bands when they fit. Whether those are an improvement you can hear is a separate question. The error here is measured against the same measurement the EQ was fitted to, and narrow features in the treble move with fit and seating, so a band aimed exactly at one may miss it on your head.
 
+## Boost
+
+The largest boost each EQ applies, in dB, which is what the preamp gives back: an EQ that boosts 6 dB somewhere plays 6 dB quieter. Median, with the 90th percentile in parentheses:
+
+| Engine                | 5 bands    | 8 bands    | 10 bands   |
+| --------------------- | ---------- | ---------- | ---------- |
+| CrinGraph             | 5.5 (9.5)  | 6.3 (10.4) | 6.2 (11.0) |
+| mGT TypeScript        | 5.7 (11.2) | 6.0 (12.3) | 6.2 (13.0) |
+| turboEQ · Exact match | 6.5 (12.3) | 7.0 (14.8) | 6.9 (15.6) |
+| turboEQ · Treble-safe | 4.6 (6.5)  | 5.0 (6.4)  | 5.1 (6.3)  |
+| AutoEq (Python)       | 4.6 (6.6)  | 4.9 (6.3)  | 4.9 (6.3)  |
+
+Treble-safe and AutoEq cap the whole EQ at 6 dB. Their bands overshoot the cap a little, but rarely by much. The other three engines limit each band and nothing else, so where a measurement falls far below the target, usually an IEM whose treble rolls off, they stack bands, and their worst curves need 20 to 30 dB, exact match’s the most.
+
+With the panel’s own default ranges, ±12 dB per band and bands up to 15 kHz, exact match’s largest boost at eight bands is 22 dB, and 8 of the 178 curves need more than 15 dB. [Fit mode](/modernGraphTool/docs/features/equalizer/#fit-mode) says what to do when that costs too much loudness.
+
 ## Where turboEQ loses
 
-With five bands on IEMs, the old TypeScript optimizer scores 1.16 dB against exact match’s 1.27. Almost all of that is level. The scores on this page remove the overall level offset, the most generous way to line two curves up, and the TypeScript optimizer’s answers lean on it. Line the curves up the way AutoEq does instead, by the mean error between 100 Hz and 10 kHz before any EQ, and it scores 1.74 while exact match stays at 1.27. turboEQ fits at a fixed level, so its score does not move.
+With five bands on IEMs, the old TypeScript optimizer scores 1.17 dB against exact match’s 1.27. Almost all of that is level. The scores on this page remove the overall level offset, the most generous way to line two curves up, and the TypeScript optimizer’s answers lean on it. Line the curves up the way AutoEq does instead, by the mean error between 100 Hz and 10 kHz before any EQ, and it scores 1.73 while exact match stays at 1.27. turboEQ fits at a fixed level, so its score does not move.
 
-What is left is the optimizer itself. With so few bands, turboEQ sometimes settles in a local minimum from the layout AutoEq’s `init()` starts it in. Its own objective rates the TypeScript answer better on 48 of the 176 curves at five bands, 16 at eight and one at ten.
+What is left is the optimizer itself. With so few bands, turboEQ sometimes settles in a local minimum from the layout AutoEq’s `init()` starts it in. Its own objective rates the TypeScript answer better on 47 of the 178 curves at five bands, 10 at eight and none at ten.
 
 ## Distance from AutoEq
 
@@ -658,29 +674,29 @@ How different each engine’s EQ is from what upstream AutoEq by jaakkopasanen p
 
 | Engine                     | 8 bands         | 10 bands        |
 | -------------------------- | --------------- | --------------- |
-| CrinGraph                  | 1.32 (2.13)     | 1.33 (2.13)     |
-| mGT TypeScript             | 1.39 (1.97)     | 1.42 (1.96)     |
-| turboEQ · Exact match      | 1.39 (2.03)     | 1.57 (2.10)     |
-| turboEQ · Treble-safe      | **0.22** (0.52) | **0.24** (0.53) |
-| AutoEq, run to convergence | 0.07 (0.24)     | 0.08 (0.21)     |
+| CrinGraph                  | 1.32 (2.20)     | 1.33 (2.13)     |
+| mGT TypeScript             | 1.37 (2.03)     | 1.44 (2.05)     |
+| turboEQ · Exact match      | 1.43 (2.07)     | 1.59 (2.21)     |
+| turboEQ · Treble-safe      | **0.18** (0.53) | **0.19** (0.59) |
+| AutoEq, run to convergence | 0.07 (0.20)     | 0.07 (0.16)     |
 
-The last row compares AutoEq with itself, with and without the preset’s early stopping (`min_std`). turboEQ always runs to convergence. Measured against converged AutoEq instead, treble-safe is 0.17 dB away at eight bands and 0.19 at ten. With the shelves pinned where AutoEq’s presets put them, the same comparison gives 0.10: letting the shelves move gives two optimizers more places to settle apart.
+The last row compares AutoEq with itself, with and without the preset’s early stopping (`min_std`). turboEQ always runs to convergence. Measured against converged AutoEq instead, treble-safe is 0.15 dB away at eight bands and 0.17 at ten. With the shelves pinned where AutoEq’s presets put them, the same comparison gives 0.10 at eight bands: letting the shelves move gives two optimizers more places to settle apart.
 
 Exact match is as far from AutoEq as the other engines are, and that is intended. It fits a different target: the curve as the graph shows it.
 
 ## Headphones
 
-The headphone set is small: nine curves from two headphones, most of them one headphone in different EQ modes. Treat it as a consistency check rather than a second result. At eight bands:
+The headphone set is small: 15 curves from seven headphones, six of them one headphone in different EQ modes. Treat it as a consistency check rather than a second result. At eight bands:
 
 | Engine                | Median time | Band count | 20 Hz–20 kHz | Below 10 kHz |
 | --------------------- | ----------: | ---------: | -----------: | -----------: |
-| CrinGraph             |      947 ms |       100% |         3.22 |         0.87 |
-| mGT TypeScript        |      1.48 s |        22% |         1.38 |         0.96 |
-| turboEQ · Exact match |      5.8 ms |       100% |     **1.26** |     **0.82** |
-| turboEQ · Treble-safe |      6.8 ms |       100% |         1.67 |         0.90 |
-| AutoEq (Python)       |       99 ms |       100% |         1.88 |         1.03 |
+| CrinGraph             |      1.50 s |       100% |         3.22 |         0.87 |
+| mGT TypeScript        |      1.97 s |        40% |         1.42 |         1.05 |
+| turboEQ · Exact match |      3.5 ms |       100% |     **1.32** |     **0.80** |
+| turboEQ · Treble-safe |      6.2 ms |       100% |         1.94 |         0.99 |
+| AutoEq (Python)       |      140 ms |       100% |         2.03 |         1.03 |
 
-Exact match leads at five and ten bands too, across the full band (1.60 against 1.81, and 1.14 against 1.31). The treble of these headphones is a row of narrow peaks and notches, which exact match can now follow: the penalty on steep bands and the extra smoothing AutoEq applies to its target no longer apply in exact mode.
+Exact match leads at five and ten bands too, across the full band (1.64 against 1.80, and 1.15 against 1.27). It can follow the narrow peaks and notches of a headphone’s treble, because the penalty on steep bands and the extra smoothing AutoEq applies to its target are off in exact mode.
 
 ## Feature comparison
 
@@ -693,20 +709,20 @@ Exact match leads at five and ten bands too, across the full band (1.60 against 
 | Sharp filters          | Allowed                                       | Allowed                                     | Exact match: allowed. Treble-safe: penalized            | Penalized above \~18 dB/octave          |
 | Level alignment        | Whatever the graph’s normalization gives      | Pinned at 1 kHz                             | Minimum mean error, 100 Hz–10 kHz                       | Minimum mean error, 100 Hz–10 kHz       |
 | Treble                 | First pass skips above 7 kHz                  | Fitted like everything else                 | Exact match: full shape. Treble-safe: AutoEq’s handling | Smoothed, level only above 10 kHz       |
-| Boost limit            | Per band                                      | Per band                                    | Whole EQ, set by the gain range’s maximum               | Whole EQ, 6 dB by default               |
+| Boost limit            | Per band                                      | Per band                                    | Exact match: per band. Treble-safe: whole EQ, 6 dB      | Whole EQ, 6 dB by default               |
 | Graphic EQ presets     | No                                            | No                                          | Yes, gain only on the preset’s bands                    | Yes, fixed-band EQ                      |
 | Runs                   | Page’s main thread                            | Web worker                                  | Web worker, WebAssembly (about 37 KB gzipped)           | Python                                  |
 
 ## How this was measured
 
-* **Data.** The measurements of [silicagel.squig.link](https://silicagel.squig.link) database. One measurement per device, the first file of each `phone_book.json` entry, left and right averaged: 176 IEM curves. All nine headphone curves were used, because there were so few. Targets were Harman IE 2019v2 for IEMs and Harman 2018 for headphones.
+* **Data.** The measurements of [silicagel.squig.link](https://silicagel.squig.link) database. One measurement per device, the first file of each `phone_book.json` entry, left and right averaged: 178 IEM curves. Every headphone measurement was used, all 15, because there were so few. Targets were Harman IE 2019v2 for IEMs and Harman 2018 for headphones.
 * **Inputs.** Each engine got its curves the way its own app prepares them. CrinGraph: its 1/48-octave grid and 60-phon loudness normalization. modernGraphTool: 1/48-octave smoothing and 500 Hz normalization. AutoEq: the raw average, as its command line takes it.
 * **Scoring.** Every engine’s filters went through the same biquads at 48 kHz, were added to the raw measurement, and were compared with the raw target on a 1/48-octave grid.
-* **Timing.** The engine call alone, one fit after another, after a warm-up fit. The JavaScript engines ran under Node 24.18 on V8, which is the engine Chrome runs. In the app, a run also pays a message round trip to the worker. AutoEq ran under Python 3.14.7, NumPy 2.5.3 and SciPy 1.18.1.
-* **Versions.** turboEQ 0.2.0, CrinGraph from `squiglink/lab` `main` at `9ff842c`, AutoEq v4.1.2.
-* **Machine.** Mac mini, Apple M4, 16 GB, macOS 27.2. Measured 2026-09-25.
+* **Timing.** The engine call alone, one fit after another, after a warm-up fit. The JavaScript engines ran under Node 24.16 on V8, which is the engine Chrome runs. In the app, a run also pays a message round trip to the worker. AutoEq ran under Python 3.14.3, NumPy 2.5.3 and SciPy 1.18.1.
+* **Versions.** turboEQ 0.3.1, CrinGraph from `squiglink/lab` `main` at `9ff842c`, AutoEq v4.1.2.
+* **Machine.** Intel Core i7-14700, 32 GB, Windows 11. Measured 2026-11-27.
 
-Timings don’t carry over to other machines. The ratios between rows should.
+Timings don’t carry over to other machines.
 
 ### Reproducing
 
@@ -720,7 +736,7 @@ python scripts/bench-autoeq/upstream.py --autoeq AUTOEQ_REPO \
 node scripts/bench-autoeq/score.mjs --curves iem.curves.json iem.jsonl iem-upstream.jsonl
 ```
 
-`upstream.py` reads the constraints from `iem.curves.json`, so AutoEq runs under the same ones. It needs NumPy, SciPy, Matplotlib, tabulate and PyYAML, since AutoEq imports all of them.
+`upstream.py` reads the constraints from `iem.curves.json`, so AutoEq runs under the same ones. It needs NumPy, SciPy, Matplotlib, tabulate and PyYAML, since AutoEq imports all of them. The headphone numbers add `--all-files` to `run.mjs`, which takes every measurement of each entry rather than its first.
 
 # Average Curves
 
@@ -878,12 +894,42 @@ When there is something to know about the device’s profile — a shared or gue
 
 **Device EQ** is what the device plays, and it changes the device as soon as you change it:
 
-* **On a device with several presets**, it’s a dropdown of those presets plus **Off (EQ bypassed)**. Picking a preset switches the device to it, and **Read** and **Write** use that preset. If the device is on one of its own built-in presets, the dropdown says so; **Write** then saves to its first editable preset and switches to it. Presets the device lists as built-in can be played and read but not written: pick one of your own to write.
+* **On a device with several presets**, it’s a dropdown of those presets plus **Off (EQ bypassed)**. Picking a preset switches the device to it, and **Read** and **Write** use that preset. If the device is on one of its own built-in presets, the dropdown says so; **Write** then saves to its first editable preset and switches to it. Presets the device lists as built-in can be played and read but not written: pick one of your own to write. On a device that reports its EQ was changed since a preset was loaded (a Qudelix after any edit), the dropdown shows **Unsaved EQ**, and **Read** and **Write** use the EQ the device plays without saving it to a preset. A change made in the device’s own app shows as **Unsaved EQ** only after **Read** on a directly connected device; linked through uniPEQ, it shows when uniPEQ reports the device’s status. With the EQ off, picking **Unsaved EQ** turns it back on as it was.
 * **On a device that keeps a single set of bands** (most dongles), it’s an on/off switch. Off bypasses the EQ inside the device; the bands stay saved on it.
 
 Some devices can only read and write the preset they’re playing. While they’re on another one, or switched off, **Read** and **Write** are unavailable and the panel says why.
 
 While a device is connected here, the [audio player](/modernGraphTool/docs/guide-for-users/equalizing/#audio-preview) leaves the EQ to it, so what the device plays isn’t equalized twice.
+
+### Adding, renaming and deleting presets
+
+A few devices keep their presets as a list that grows and shrinks, with names stored on the device: the Topping DX5 II and DX9 Discrete. For these, **Device EQ** lists the presets the device holds right now under its own names, and a **Presets** row under it has three buttons:
+
+* **New** adds an empty preset and switches the device to it, so **Read** and **Write** use it straight away. It’s unavailable once the device is full.
+* **Rename** renames the preset **Device EQ** shows. The name is stored on the device, which may only take a short one in plain letters and digits; a name it refuses is said in the dialog, and nothing is shortened to fit.
+* **Delete** removes the preset **Device EQ** shows, for good. The device may switch to another of its presets, and **Device EQ** follows it. The last preset can’t be deleted.
+
+Rename and Delete are unavailable while **Device EQ** shows **Off**.
+
+### Devices with more than one EQ
+
+A few devices have two EQs: a Qudelix 5K has its user EQ and a separate headphone EQ (“SPK EQ”), each with its own bands, presets and on/off switch. For these, an **EQ** row appears at the top of the box, and everything else follows the one you pick: the limits on the band list, **Device EQ**, **Read**, **Write** and auto-write.
+
+* Picking another EQ reads nothing and leaves your bands as they are, like picking another preset (over the [uniPEQ link](/modernGraphTool/docs/features/unipeq-link/), uniPEQ reads it into the band list instead). The limits change with it (the Qudelix 5K Plus headphone EQ has 20 bands, its user EQ 10), so bands that no longer fit are marked.
+* An EQ the device doesn’t have in its current mode is greyed out, and a line under the row says so. A Qudelix set to its single-EQ mode has no headphone EQ; its user EQ then has more bands, and the limits show the count the device reports.
+* If the device’s mode changes while it’s connected, the panel falls back to the main EQ the next time something fails for that reason, and says so.
+
+## Device settings
+
+Some devices have settings of their own beside the EQ, and the ones modernGraphTool can drive appear in the same box as **Device EQ**: a headroom, a crossfeed, a DAC filter, an output gain, and so on. Which ones depends on the device; most dongles have none.
+
+* **A setting is applied as soon as you change it.** It isn’t part of the band list: **Write to device** doesn’t send it, undo doesn’t revert it, and it has no effect on whether the device and the list match.
+* **Each row shows what the device reports.** If the device refuses a change, the row stays where it was and the status line says why.
+* **Settings that belong to the EQ sit right under Device EQ**, above a divider; the device’s general settings are below it. On a device with two EQs they are the picked EQ’s: each of a Qudelix’s EQs has its own headroom. A device can keep an EQ setting with each preset (a Qudelix keeps its crossfeed that way), so those rows are read again when you switch preset or read the device. Some devices refuse to change them while the EQ is off.
+* A setting that restarts the device asks first, and the panel reconnects by itself afterwards.
+* If a setting’s current value stops the device applying its EQ, the row and the status line say so.
+
+Options keep the names the device’s own app uses.
 
 ## Reading and writing
 
@@ -895,7 +941,7 @@ While a device is connected here, the [audio player](/modernGraphTool/docs/guide
 
 Turn on **Write changes automatically** and the device follows the band list: each change — a dragged band, an AutoEQ run, an undo, an import — is written a moment after you stop editing, even with the Equalizer panel closed. Turning it on writes the current list straight away; connecting a device with it already on writes nothing until you change something.
 
-* If a change would reach the device differently from what’s on screen — a value it can’t hold, a left- or right-only band — auto-write pauses and offers **Review and write**. It carries on by itself once the list fits again.
+* If a change would reach the device differently from what’s on screen — a value it can’t hold, a left- or right-only band on a device with one EQ for both ears — auto-write pauses and offers **Review and write**. It carries on by itself once the list fits again.
 * After switching **Device EQ** to another preset, your next change is written into that preset.
 * If a write fails, auto-write turns itself off until you switch it back on or connect again. The saved setting stays on, so one dropped connection doesn’t turn it off for later visits.
 * Devices that restart after every save don’t offer it.
@@ -906,11 +952,19 @@ Some devices restart to save what they’re sent. The panel waits a few seconds 
 
 If a device is unplugged or goes out of range, it’s disconnected right away and your own constraint comes back; your bands stay as they are.
 
-The preamp goes to devices that take one. A device that can’t lower its own level gets a clipping warning when the bands boost.
+The preamp goes to devices that take one. A device that can’t lower its own level, or can’t lower it as far as the bands boost, gets a clipping warning.
 
-Shared bands only
+### Left and right
 
-Hardware EQ slots have no channel concept. A write sends the **L+R** bands and tells you how many left- or right-only bands it skipped — see [Per-channel EQ](/modernGraphTool/docs/features/equalizer/#per-channel-eq).
+Most devices have one set of bands for both ears. A write to one of those sends the **L+R** bands and tells you how many left- or right-only bands it skipped — see [Per-channel EQ](/modernGraphTool/docs/features/equalizer/#per-channel-eq).
+
+A few have a set per ear: the Qudelix headphone EQ (“SPK EQ”) and the Topping DX5 II. While one of those is the EQ in use, the **Channel** switch above the band list stays available, and:
+
+* **Write** sends each ear its own EQ: the L+R bands plus that ear’s own. A device with 20 bands per ear therefore takes 20 for the left and 20 for the right, with every L+R band counting once on each.
+* **Read** brings back both ears. Where they hold the same thing, the bands arrive as L+R bands; where they differ, a band both ears share stays L+R and the rest arrive as left-only and right-only bands.
+* The review before a write lists what changes by the band’s number in your list, whichever ear it belongs to. A change that reaches only one ear — an L+R band with no room left on one side, say — names that ear.
+
+Linked through uniPEQ, one of these devices in uniPEQ works the same way, with a uniPEQ recent enough to carry both ears: see [uniPEQ Link](/modernGraphTool/docs/features/unipeq-link/#while-linked).
 
 ## Network devices
 
@@ -969,7 +1023,7 @@ What each ear actually plays is *shared + that ear’s own bands*. The preamp is
 Two things to know:
 
 * **AutoEQ follows the switch.** In **L+R** it optimizes against the average, preserving the unit’s natural imbalance. Scoped to one ear it optimizes against that ear’s measurement and replaces only that bucket, leaving the shared bands and the other ear alone. Running it once per ear is how you correct imbalance and match a target at the same time.
-* **Hardware EQ is shared-only.** Hardware EQ slots have no channel concept, so pushing to a device sends the shared bands and warns you about the left/right bands it had to skip. The graph, the audio preview and file export all carry the full per-channel EQ.
+* **Hardware EQ is shared-only on most devices.** Most hardware EQs have one set of bands for both ears, so pushing to a device sends the shared bands and warns you about the left/right bands it had to skip. A few devices hold a set per ear and take the full per-channel EQ: see [Hardware EQ](/modernGraphTool/docs/features/device-peq/#left-and-right). The graph, the audio preview and file export always carry it.
 
 See [Equalizing audio](/modernGraphTool/docs/guide-for-users/equalizing/#per-channel-eq-l--r) for the workflow.
 
@@ -1071,17 +1125,17 @@ AutoEQ runs [turboEQ](https://github.com/potatosalad775/turboEQ), a WebAssembly 
 
 **Treble-safe** is jaakkopasanen AutoEQ’s own, more cautious fit. AutoEq smooths the treble above about 8 kHz, judges only its overall level above 10 kHz and places no band above 10 kHz. Treble measurements can vary a lot depending on a fit, seating, and physical characteristic of every rig, so this corrects only what a measurement can be trusted for. Choose it when you don’t trust your treble data, or when the EQ is for listening rather than for matching the exact graph.
 
-In either mode, the gain range’s maximum caps the largest boost the whole EQ may apply, not only each band. The preamp follows automatically, so a bigger boost costs loudness rather than clipping. Lower the maximum if you would rather keep the level up.
+The gain range limits each band on its own, as in CrinGraph. In exact match that is the only limit, so where the curve falls far below the target, usually a treble that rolls off, the fit can stack bands and boost past the range. Treble-safe also keeps AutoEq’s own limit of 6 dB on the whole EQ’s boost. That limit applies to the correction the fit aims for, not to the result, so the fitted EQ can land a decibel or two past it. Either way the preamp follows automatically, so a bigger boost costs loudness rather than clipping. A [Hardware EQ](/modernGraphTool/docs/features/device-peq/) device lowers its level only as far as its own preamp goes, or not at all if it takes none. When the bands need more, Hardware EQ warns that the device may clip. If the boost costs too much, lower the gain range’s maximum or switch to treble-safe.
 
 The frequency, Q and gain ranges are **bounds the fit works within**, exactly as you set them, not a clamp applied to the result afterwards: narrowing them changes what the optimizer looks for rather than trimming what it found. The frequency range says where a band may sit — the fit is still judged across the whole axis, so a narrow range leaves the rest of the curve alone instead of pretending it is already correct.
 
 With **Use shelf filters** on, the fit places the low and high shelf itself, choosing their frequency and Q as well as their gain. Shelf Q stays between 0.4 and 0.7, since a steeper shelf overshoots into a bump that a peaking band does better.
 
-Graphic-EQ presets fit too. Frequency and Q come from the preset’s own bands and only gain is optimized, so every band lands exactly on its slider.
+Graphic-EQ presets fit too. Frequency and Q come from the preset’s own bands and only gain is optimized, so every band lands exactly on its slider. Each slider stays within the preset’s gain range, and the fit mode limits the whole EQ as above. The panel has no gain range to lower here, so treble-safe is the way to keep a graphic EQ’s boost down.
 
 If the module cannot load for any reason, the older JavaScript optimizer answers instead, and the AutoEQ panel says so. It is slower and fits less well, and it sometimes returns fewer bands than it was asked for, but a failed load never costs you a working AutoEQ. It has only one way to fit, the same as Exact match, so the fit mode is hidden until turboEQ loads again. It cannot keep bands on a graphic EQ’s sliders, so with a graphic-EQ preset AutoEQ leaves the filters as they are and says why.
 
-turboEQ can also turn down a particular request while loading fine — Treble-safe with a frequency range entirely above 10 kHz, for example, since that mode places no band there. The older optimizer answers that request too, and the panel says the settings were the problem; the fit mode stays, so you can switch to Exact match.
+turboEQ can also turn down a particular request while loading fine — Treble-safe with a frequency range entirely above 10 kHz, for example, since that mode places no band there. The older optimizer answers that request too, in its one way to fit, so treble-safe’s 6 dB limit doesn’t apply to the result. The panel says the settings were the problem; the fit mode stays, so you can switch to Exact match.
 
 # Frequency Tutorial
 
@@ -1311,14 +1365,16 @@ No device at hand? uniPEQ’s **demo device** lets you try the link without one.
 * **On a computer**, press **Open uniPEQ**. uniPEQ on the web opens in a new tab and joins. Keep this tab open while you’re linked.
 * **Anywhere else**, type the code in uniPEQ’s **Link with modernGraphTool**.
 
-uniPEQ then asks whether to link with this site, by its address. Nothing reaches the device until you say yes there. If the two apps hold different EQs, this page asks which one to keep: **Use uniPEQ’s EQ**, or **Send this EQ to uniPEQ**. Sending turns switched-off bands into 0 dB bands and leaves left- or right-only bands out, and the question says how many of each. An empty band list here takes uniPEQ’s without asking.
+uniPEQ then asks whether to link with this site, by its address. Nothing reaches the device until you say yes there. If the two apps hold different EQs, this page asks which one to keep: **Use uniPEQ’s EQ**, or **Send this EQ to uniPEQ**. Sending turns switched-off bands into 0 dB bands and leaves left- or right-only bands out unless uniPEQ’s device takes them (see below), and the question says how many of each. An empty band list here takes uniPEQ’s without asking.
 
 ## While linked
 
 There is one band list, and both apps edit it live. uniPEQ holds it and writes the device; this page shows each change it makes, and the last change wins when both apps edit the same band at once. Each app keeps its own undo history, and a change made in the other app is one step in it.
 
-* The list is one list for both ears, as a device’s is: the channel picker stays on **L+R**, and bands have no on/off switch.
+* Bands have no on/off switch. The list is one list for both ears, as most devices’ is, and the channel picker stays on **L+R**. A device in uniPEQ with a set of bands per ear (see [Left and right](/modernGraphTool/docs/features/device-peq/#left-and-right)) is the exception: the picker offers **L** and **R** too, and uniPEQ holds the two ears apart while the list has left- or right-only bands. Removing the last of them joins the ears again. This needs a uniPEQ recent enough to carry both ears; with an older one the picker stays on **L+R**. Left- or right-only bands that come back where uniPEQ can’t take them, through undo for instance, bring back the question above.
 * uniPEQ’s device shows in [Hardware EQ](/modernGraphTool/docs/features/device-peq/) as the connected device, with its limits as the active [EQ constraint](/modernGraphTool/docs/features/equalizer/#eq-constraints). **Read**, **Write**, **Device EQ** and **Auto-write** there act on uniPEQ, and a write uniPEQ can’t make exactly asks for review in both apps; either app’s answer closes both.
+* A device that keeps its presets as a list shows them under its own names, and [**New**, **Rename** and **Delete**](/modernGraphTool/docs/features/device-peq/#adding-renaming-and-deleting-presets) act on uniPEQ too. So do the device’s [settings](/modernGraphTool/docs/features/device-peq/#device-settings), each row showing what uniPEQ reads from the device. Like left- and right-only bands, these need a recent uniPEQ.
+* A device with [more than one EQ](/modernGraphTool/docs/features/device-peq/#devices-with-more-than-one-eq) gets the **EQ** row, and picking an EQ there switches the one uniPEQ edits. Unlike a device connected in this browser, uniPEQ reads the EQ you pick into the band list. While the list has changes the device doesn’t have yet, it doesn’t switch: **Write** them, or **Read** to drop them, first. An older uniPEQ doesn’t name the device’s EQs, so only the one picked in uniPEQ shows.
 * While uniPEQ’s device is reconnecting, the list can’t be edited.
 * When you started uniPEQ with **Open uniPEQ**, it runs on this machine, so the [audio player](/modernGraphTool/docs/guide-for-users/equalizing/#audio-preview) leaves the EQ to its device. **Apply it here instead** under the player’s switches takes it back, for a device this browser’s sound doesn’t play through.
 * When uniPEQ joined by QR code or typed code, it may be on another machine, so the player keeps applying the EQ. If this browser’s sound plays through the linked device, choose **Leave the EQ to the device** there, or the EQ is applied twice.
@@ -3374,7 +3430,7 @@ For more control, a phone can be defined as an object with the following keys:
 * `name` (String, Required): The model name of the phone to be displayed in the list.
 * `file` (String, Required): The base file name of the measurement data file (without L / R suffix and .txt extension). For example, if the files are MyPhone L.txt and MyPhone R.txt , file should be “MyPhone”.
 * `suffix` (String, Optional): An optional suffix to append to the name in the selection list (e.g., “Rev.2”, “(Foam Tip)”). The actual data file should reflect this suffix if it’s part of the filename (e.g., MyPhone (Foam Tip) L.txt ).
-* `reviewScore` (String, Optional): A review score, e.g., “A+” or “3” (number between 0 to 5).
+* `reviewScore` (String, Optional): A review score, e.g., “A+” or “3” (number between 0 to 5). A number is drawn as a row of five stars, filled in proportion to it, so “4.5” and “4.3” both work.
 * `reviewLink` (String, Optional): A URL link to a review of the phone.
 * `shopLink` (String, Optional): A URL to a shop or purchase page.
 * `price` (String, Optional): The price of the phone (e.g., “$299”, “€250”). Using a string allows for currency symbols and various formats.
@@ -3512,6 +3568,8 @@ Sample sets are declared per variant, inside a `variants` array:
 ```json
 {
   "name": ["HD 600"],
+  "file": ["HD600 Stock", "HD600 Mod", "HD600 Leather"],
+  "suffix": ["Stock", "Modded", "Leather Pad"],
   "variants": [
     { "suffix": "Stock", "file": "HD600 Stock" },
 
@@ -3567,9 +3625,11 @@ A variant’s own `description` and its `samples.description` don’t merge. The
 
 variants composes with `file`
 
-`variants` does **not** replace the phone-level `file` / `suffix` / `prefix` / `samples` / `hptfs` keys — the two combine into one variant list. An entry whose `file` names a measurement the phone already declared **upgrades that variant in place**, keeping its position (so the phone’s default curve doesn’t move); every other entry is **appended** after. Declaring the same variant in both places lists it once, not twice.
+`variants` does **not** replace the phone-level `file` / `suffix` / `prefix` / `samples` / `hptfs` keys — the two combine into one variant list. An entry whose `file` names a measurement the phone already declared **upgrades that variant in place**. When `variants` names only some of the phone’s measurements, the upgraded entry keeps its position (so the phone’s default curve doesn’t move) and every other entry is **appended** after; when it names all of them, it sets the order (see the end of this note). Declaring the same variant in both places lists it once, not twice.
 
-This is what lets one entry serve both tools. CrinGraph reads `file` and nothing else, so a phone whose measurements live only in `variants` is invisible to it. Keep the plain measurements in `file` / `suffix` and layer the sample sets on top:
+This is what lets one entry serve both tools. CrinGraph reads `file` and nothing else, so a phone whose measurements live only in `variants` is invisible to it. Keep the plain measurements in `file` / `suffix` and layer the sample sets on top.
+
+**Every phone keeps a phone-level `file`, even when its measurements are described in `variants`.** CrinGraph reads `file`, and so does squig.link’s cross-site search when it builds its device list and share links from your `phone_book.json`. A phone without one is missing from squig.link search, and so is every phone listed after it in the same file (modernGraphTool logs a console warning for it). When a variant has its own `file`, repeat it (and its `suffix`) at the phone level. A set declared only with `samples.files` can stay out of `file`, unless it is the phone’s first variant or the phone would then have no `file` at all: in those cases use the set’s first file.
 
 ```json
 {
@@ -3590,6 +3650,23 @@ This is what lets one entry serve both tools. CrinGraph reads `file` and nothing
 ```
 
 CrinGraph shows the three eartip variants; modernGraphTool shows those three **plus** the insertion-depth set. To give one of the eartips its own runs instead of adding a fourth entry, set that variant’s `file` to the eartip’s filename — it upgrades in place.
+
+**When `variants` names every measurement the phone declares outside it, the variant picker follows the order of `variants`.** That means each `file` entry, and each `hptfs` entry (named by its first file). This is the shape the phone_book.json Editor exports. When `variants` names only some of them, the list starts from `file` and then `hptfs` in their order, a `variants` entry naming one of those measurements upgrades it in place, and every other entry is appended after. The first variant is the phone’s default curve, but squig.link search and CrinGraph always open the first entry of `file`, so keep that entry equal to the first variant (for a set declared only with `samples.files`, the set’s first file); modernGraphTool logs a console warning when a complete `variants` list starts with a different measurement. For example, to put a set declared only with `samples.files` first, list its first file and suffix first in `file` and the set first in `variants`:
+
+```json
+{
+  "name": ["HD600"],
+  "file": ["HD600 Pad Center", "HD600 Stock"],
+  "suffix": ["Pad Positions", "Stock"],
+  "variants": [
+    {
+      "suffix": "Pad Positions",
+      "samples": { "files": ["HD600 Pad Center", "HD600 Pad Front", "HD600 Pad Back"] }
+    },
+    { "file": "HD600 Stock", "suffix": "Stock", "samples": 3 }
+  ]
+}
+```
 
 Unnumbered fallback
 
@@ -3635,6 +3712,8 @@ Becomes a `variants` entry with `samples.files` and a `display` of `["avg", "fil
 ```json
 {
   "name": ["HpTF Multi Pad"],
+  "file": "Leather Center",
+  "suffix": "Leather Pad",
   "variants": [
     {
       "suffix": "Leather Pad",
@@ -3651,20 +3730,20 @@ Becomes a `variants` entry with `samples.files` and a `display` of `["avg", "fil
 
 Convert automatically
 
-You don’t have to do this by hand. Load your existing `phone_book.json` into the [**phone_book.json Editor**](/modernGraphTool/docs/phone-book-editor/) and export it again — import reads every legacy form, and export always writes canonical `variants[]`. It converts the whole file in one pass, `hptfs[]` entries included.
+You don’t have to do this by hand. Load your existing `phone_book.json` into the [**phone_book.json Editor**](/modernGraphTool/docs/phone-book-editor/) and export it again — import reads every legacy form, and export writes `variants[]` together with the phone-level `file` (and `suffix`), so the converted file stays readable by CrinGraph and squig.link. It converts the whole file in one pass, `hptfs[]` entries included.
 
 The matching `MULTI_SAMPLE` and `HPTF` sections in `config.js` are deprecated alongside it; see [`SAMPLES`](/modernGraphTool/docs/guide-for-admins/customize-page/#samples) for the replacement keys.
 
 Combining forms
 
-Regular `file` / `suffix` variants, phone-level `samples`, `hptfs` entries and `variants` entries on one phone are treated as **independent variants** in a single flat list — two `file` variants plus two `hptfs` entries produce four entries in the variant selector. The one exception is the in-place upgrade above: a `variants` entry naming an already-declared `file` refines that variant instead of adding another.
+Regular `file` / `suffix` variants, phone-level `samples`, `hptfs` entries and `variants` entries on one phone are treated as **independent variants** in a single flat list — two `file` variants plus two `hptfs` entries produce four entries in the variant selector. The one exception is the in-place upgrade above: a `variants` entry naming an already-declared `file` refines that variant instead of adding another. (And when `variants` names every `file` measurement and every `hptfs` entry, it also sets their order.)
 
 Dual-hosting with CrinGraph
 
 Both halves of a shared deployment work out:
 
 * **Measurement folder** — labels, fills and per-run display are additive metadata over numbered files. A database using `count` keeps the exact `{file} L{n}.txt` layout a CrinGraph `num_samples` site expects, so one folder serves both tools.
-* **`phone_book.json`** — keep every plain measurement in `file` / `suffix`, since that is all CrinGraph reads, and add `variants` alongside it for the sample sets. CrinGraph ignores the keys it doesn’t know; modernGraphTool composes the two.
+* **`phone_book.json`** — keep every plain measurement in `file` / `suffix`, since that is all CrinGraph and squig.link search read, and add `variants` alongside it for the sample sets. CrinGraph ignores the keys it doesn’t know; modernGraphTool composes the two.
 
 ## How to Add/Modify Measurement Data
 
@@ -4540,7 +4619,7 @@ To keep the imbalance and just fix the overall tuning, stay on **L+R** — AutoE
 
 Where per-channel EQ applies
 
-The graph, the audio preview and the exported filter file all carry the full per-channel EQ. **Device PEQ does not** — hardware EQ slots have no channel concept, so a push sends the shared bands only and tells you how many left/right bands it skipped.
+The graph, the audio preview and the exported filter file all carry the full per-channel EQ. **Most hardware EQs do not** — they have one set of bands for both ears, so a push sends the shared bands only and tells you how many left/right bands it skipped. A few devices hold a set per ear and take all of it: see [Hardware EQ](/modernGraphTool/docs/features/device-peq/#left-and-right).
 
 ## AutoEQ
 
@@ -5413,7 +5492,7 @@ Some variants are a **sample set** — the same thing measured several times, wh
 
 * **Show all-sample average** — the single averaged curve across every run.
 * **Show Deviation Fill** — a shaded band spanning the highest and lowest run at each frequency.
-* **Per-sample curves** — a collapsible list of every run by name (e.g. “Center”, “Front”), each with its own **L**, **R** and **AVG** boxes so you can pull out exactly the curve you want. `Select All L` / `Select All R` / `Select All` / `Deselect All` do the obvious thing. The list starts closed unless individual runs are already on the graph, and the number beside it counts how many are drawn.
+* **Per-sample curves** — a collapsible list of every run by name (e.g. “Center”, “Front”), each with its own **L**, **R** and **AVG** boxes so you can pull out exactly the curve you want. `Select All L` / `Select All R` / `Select All` / `Deselect All` do the obvious thing. The list starts closed unless individual runs are already on the graph, and the number beside it counts how many are drawn. Runs share the curve’s color in graded shades, the first run darkest. They are drawn faint behind the average, and solid once the average is hidden.
 
 They compose freely: an averaged line with a variance band around it, or the band alone with no main curve, or every individual run and nothing else.
 
@@ -5699,6 +5778,34 @@ Full explanation and worked examples: [Why `BASE_PATH` is almost always required
 Everything that isn’t the app bundle itself (data, config, theme, Preference Bound files) is identical between the two options. You can switch back and forth by swapping your `index.html` file and optionally adding or removing the `CDN_MODE` section from `config.js`. There’s no lock-in.
 
 # modernGraphTool v2 Changelog
+
+### v2.3.8
+
+* Fix: AutoEQ’s **Gain Range** now limits each band on its own, as in CrinGraph. Before, its maximum also capped the boost of the whole EQ. In **Exact match**, bands can now stack past the range where a curve falls far below the target, usually a treble that rolls off, so some fits boost more and get a lower preamp. **Treble-safe** aims for at most 6 dB of boost across the whole EQ, AutoEq’s own limit, whatever the range says. Graphic EQ presets follow the same rules. If a fit gets too quiet, lower the range’s maximum or switch to Treble-safe. See [Fit mode](/modernGraphTool/docs/features/equalizer/#fit-mode).
+* Fix: Hardware EQ now also warns that a device may clip when its preamp can’t go as low as the bands’ boost needs. Before, it warned only for devices that take no preamp at all.
+
+### v2.3.7
+
+* Feat: Hardware EQ now shows a device’s own settings next to **Device EQ**: headroom, crossfeed, DAC filter, output gain, USB mode and more, depending on the device. A setting applies as soon as you change it. If a setting restarts the device, the panel asks first and reconnects afterwards. See [Device settings](/modernGraphTool/docs/features/device-peq/#device-settings).
+* Feat: A device with more than one EQ, such as the Qudelix 5K with its user EQ and headphone EQ (“SPK EQ”), gets an **EQ** row. It picks the EQ that **Device EQ**, **Read**, **Write**, auto-write and the band list’s limits use. See [Devices with more than one EQ](/modernGraphTool/docs/features/device-peq/#devices-with-more-than-one-eq).
+* Feat: On a device that keeps its presets as a list, such as the Topping DX5 II and DX9 Discrete, **Device EQ** lists the presets under their names on the device. **New**, **Rename** and **Delete** buttons add to that list and change it. See [Adding, renaming and deleting presets](/modernGraphTool/docs/features/device-peq/#adding-renaming-and-deleting-presets).
+* Feat: A device with a separate set of bands for each ear, such as the Qudelix headphone EQ and the Topping DX5 II, now gets the full per-channel EQ. **Write** sends each ear the L+R bands plus that ear’s own bands, **Read** brings back both ears, and the **Channel** switch stays available. Other devices still get the L+R bands only. See [Left and right](/modernGraphTool/docs/features/device-peq/#left-and-right).
+* Feat: The [uniPEQ link](/modernGraphTool/docs/features/unipeq-link/#while-linked) now carries all of the above for a device connected in uniPEQ: left- and right-only bands, the device’s preset list, its settings and its EQs. This needs a recent uniPEQ. With an older one, the link works as before.
+* Feat: When a phone’s `variants[]` names every measurement in its `file` (and `hptfs`), the variant picker now follows the order of `variants[]`, and its first entry is the default curve. A `variants[]` that names only some of them keeps the old order. The browser console warns about a phone that has `variants` but no `file`, and about a phone whose first variant isn’t the first entry of `file`, because squig.link and CrinGraph would open a different one. See [Sample Sets](/modernGraphTool/docs/guide-for-admins/manage-data/#sample-sets).
+* Fix: The [phone_book.json Editor](/modernGraphTool/docs/phone-book-editor/) now exports the phone-level `file` and `suffix` alongside `variants[]`, and no longer warns on import that it would drop them. A phone without `file` was missing from squig.link’s cross-site search, along with every phone after it in the same file, and CrinGraph couldn’t read it. If the Editor converted your `phone_book.json` before, export it again.
+* Fix: Some devices report that their EQ has changed since a preset was loaded. A Qudelix does this after any edit, including one made in its own app. These devices now show **Unsaved EQ** under **Device EQ**, and **Read** and **Write** use the EQ the device is playing. Before, the panel showed the first preset instead, **Read** was unavailable, and **Write** saved over that preset. See [Device EQ](/modernGraphTool/docs/features/device-peq/#device-eq).
+* Fix: Hardware EQ’s controls now keep keyboard focus while the device is busy, instead of losing it. A setting slider released during a write is applied once the device is free.
+* Fix: Over the uniPEQ link, pressing a button again while uniPEQ is still busy no longer causes an error notification. The status line no longer shows an old error or setting message after uniPEQ writes.
+* Fix: Over the uniPEQ link, the Equalizer no longer says the preamp was auto-reduced when uniPEQ’s fixed preamp is in use. Instead, it warns for each channel when that preamp leaves less headroom than the bands’ boost.
+* Fix: A band’s gain now shows at most two decimals and its Q at most three, so a Q read from a device shows as `0.707` instead of `0.70703125`.
+* Fix: The tone generator now glides between slider positions instead of stepping. Below 150 Hz it moves in 0.1 Hz steps, so every slider position changes the pitch. A move of more than an octave still jumps.
+
+### v2.3.6
+
+* Feat: The runs of a sample set are now drawn in graded shades of the curve’s color, the first run darkest, instead of all in one color. Recoloring the curve recolors its runs too. They stay faint behind the average, and are drawn solid once the average is hidden. See [Sample selector](/modernGraphTool/docs/guide-for-users/working-with-curves/#sample-selector-for-devices-measured-more-than-once). (#134)
+* Feat: Hardware EQ is updated to eqcaps 0.6, which adds support for Topping devices and more.
+* Refactor: AutoEQ is updated to turboEQ 0.3.1, which is up to twice as fast and fixes a rare error that occurred during exact-match peaking-only runs.
+* Fix: A fractional `reviewScore` such as `4.3` now fills exactly that much of the five-star row. Before, it was rounded down to the nearest half star, and the half star was an emoji drawn in its own size and color. (#135)
 
 ### v2.3.5
 
